@@ -2,7 +2,14 @@ use std::fs::File;
 
 use bevy::prelude::*;
 
-const TILE_SIZE: f32 = 16.0;
+const TILE_SIZE: f32 = 32.0;
+const SCALE: f32 = 1.0;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum GameState {
+    LoadingResources,
+    LoadingFinished,
+}
 
 struct Player {
     pub x: i32,
@@ -34,6 +41,7 @@ impl GameMap {
             tiles.push(tile_row);
         }
 
+        tiles.reverse();
         GameMap {
             height: tiles.len() as i32,
             width: tiles
@@ -63,7 +71,11 @@ pub struct Level {
     layout: Vec<String>,
 }
 
-fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn setup(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut app_state: ResMut<State<GameState>>,
+) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
     let level1_file = File::open("assets/levels/level1.ron").expect("Could not load level 1");
@@ -81,8 +93,9 @@ fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
         hostile: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
-        floor: materials.add(Color::rgb_u8(0, 0, 0).into()),
+        floor: materials.add(Color::rgb(0.01, 0.01, 0.12).into()),
     });
+    app_state.set(GameState::LoadingFinished).unwrap();
 }
 
 fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
@@ -96,12 +109,13 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
 
             commands.spawn().insert_bundle(SpriteBundle {
                 sprite: Sprite {
-                    size: Vec2::new(TILE_SIZE, TILE_SIZE),
+                    size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
                     ..Default::default()
                 },
                 material: material.clone(),
                 transform: Transform {
                     translation: Vec3::new(x as f32 * TILE_SIZE, y as f32 * TILE_SIZE, 0.0),
+                    scale: Vec3::new(SCALE, SCALE, 0.0),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -112,8 +126,18 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
 
 fn main() {
     App::build()
+        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(WindowDescriptor {
+            width: 1280.0,
+            height: 720.0,
+            title: "AAAAAAAAHHHHH".to_owned(),
+            ..Default::default()
+        })
         .add_plugins(DefaultPlugins)
+        .add_state(GameState::LoadingResources)
         .add_startup_system(setup.system())
-        .add_system(render_map.system())
+        .add_system_set(
+            SystemSet::on_enter(GameState::LoadingFinished).with_system(render_map.system()),
+        )
         .run();
 }
