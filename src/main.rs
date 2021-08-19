@@ -19,7 +19,7 @@ struct Player {
 struct GameMap {
     height: i32,
     width: i32,
-    tiles: Vec<Vec<TileType>>,
+    tiles: Vec<Vec<TileType>>, //TODO: Make this a HashMap of (x,y), TileTyoe
 }
 
 impl GameMap {
@@ -35,6 +35,7 @@ impl GameMap {
                     '.' => {
                         tile_row.push(TileType::Floor);
                     }
+                    '@' => { /* Ignore player as they are no tile */ }
                     unknown => panic!("Couldn't parse map due to unknown character: {}", unknown),
                 }
             }
@@ -71,6 +72,62 @@ pub struct Level {
     layout: Vec<String>,
 }
 
+/// Parse level to create game map and entities like the player and enemies.
+fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> GameMap {
+    let mut tiles: Vec<Vec<TileType>> = vec![];
+    for (y, row) in level.layout.iter().enumerate() {
+        let mut tile_row: Vec<TileType> = vec![];
+        for (x, col) in row.chars().enumerate() {
+            match col {
+                '#' => {
+                    tile_row.push(TileType::Wall);
+                }
+                '.' => {
+                    tile_row.push(TileType::Floor);
+                }
+                '@' => {
+                    commands
+                        .spawn()
+                        .insert_bundle(SpriteBundle {
+                            sprite: Sprite {
+                                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                                ..Default::default()
+                            },
+                            material: materials.player.clone(),
+                            transform: Transform {
+                                translation: Vec3::new(
+                                    (x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                                    (y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                                    0.0,
+                                ),
+                                scale: Vec3::new(SCALE, SCALE, 0.0),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(Player {
+                            x: x as i32,
+                            y: y as i32,
+                        });
+                }
+                unknown => panic!("Couldn't parse map due to unknown character: {}", unknown),
+            }
+        }
+        tiles.push(tile_row);
+    }
+
+    tiles.reverse();
+    GameMap {
+        height: tiles.len() as i32,
+        width: tiles
+            .first()
+            .ok_or("Error loading Map: Map does not have tiles")
+            .unwrap()
+            .len() as i32,
+        tiles,
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -84,18 +141,42 @@ fn setup(
         Err(e) => panic!("Error deserializing RON  file: {}", e),
     };
 
-    let map = GameMap::load_from(level1);
-
-    commands.insert_resource(map);
-
-    commands.insert_resource(Materials {
+    let materials = Materials {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
         hostile: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
         floor: materials.add(Color::rgb(0.01, 0.01, 0.12).into()),
-    });
+    };
+
+    let map = parse_level(&mut commands, &materials, level1);
+
+    commands.insert_resource(map);
+
+    commands.insert_resource(materials);
     app_state.set(GameState::LoadingFinished).unwrap();
+}
+
+fn render_player(mut commands: Commands, materials: Res<Materials>, mut query: Query<&Player>) {
+    if let Ok(player) = query.single_mut() {
+        commands.spawn().insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                ..Default::default()
+            },
+            material: materials.player.clone(),
+            transform: Transform {
+                translation: Vec3::new(
+                    (player.x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                    (player.y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                    0.0,
+                ),
+                scale: Vec3::new(SCALE, SCALE, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+    }
 }
 
 fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
@@ -143,5 +224,6 @@ fn main() {
         .add_system_set(
             SystemSet::on_enter(GameState::LoadingFinished).with_system(render_map.system()),
         )
+        .add_system(render_player.system())
         .run();
 }
