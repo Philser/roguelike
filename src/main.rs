@@ -2,7 +2,7 @@ use std::fs::File;
 
 use bevy::prelude::*;
 
-const TILE_SIZE: f32 = 32.0;
+const TILE_SIZE: f32 = 24.0;
 const SCALE: f32 = 1.0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -114,7 +114,11 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
                 },
                 material: material.clone(),
                 transform: Transform {
-                    translation: Vec3::new(x as f32 * TILE_SIZE, y as f32 * TILE_SIZE, 0.0),
+                    translation: Vec3::new(
+                        (x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                        (y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                        0.0,
+                    ),
                     scale: Vec3::new(SCALE, SCALE, 0.0),
                     ..Default::default()
                 },
