@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{map::Materials, GameState, PLAYER_Z, SCALE, TILE_SIZE};
+use crate::{map::GameMap, Collidable, PLAYER_Z, TILE_SIZE};
 
 pub struct PlayerPlugin {}
 
@@ -22,6 +22,7 @@ pub struct Player {
 fn try_move_player(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut Transform, &mut Player)>,
+    collidables_query: Query<&Collidable>,
 ) {
     let (mut player_tf, mut player) = query
         .single_mut()
@@ -38,25 +39,36 @@ fn try_move_player(
         tried_move = true;
     }
     if keyboard_input.just_pressed(KeyCode::W) {
-        move_coordinates = (0, -1 as i32);
-        tried_move = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::S) {
         move_coordinates = (0, 1 as i32);
         tried_move = true;
     }
+    if keyboard_input.just_pressed(KeyCode::S) {
+        move_coordinates = (0, -1 as i32);
+        tried_move = true;
+    }
 
-    // TODO: Collision check
-    player.x += move_coordinates.0;
-    player.y -= move_coordinates.1;
-
-    // TODO: Right now I am lazy but this def. needs to
-    // be an own function that translates coords to pixels
-    // keeping in mind that bevy's pixel coords start from the middle of the screen
     if tried_move {
+        // Check for collisions
+        //TODO: Consider looking up Walls directly in the Map instead of indirectly via the Collidable query, to
+        // save CPU
+        let new_x = player.x + move_coordinates.0;
+        let new_y = player.y + move_coordinates.1;
+
+        for collidable in collidables_query.iter() {
+            if new_x == collidable.x && new_y == collidable.y {
+                return; // Collision detected
+            }
+        }
+
+        player.x = new_x;
+        player.y = new_y;
+
+        // TODO: Right now I am lazy but this def. needs to
+        // be an own function that translates coords to pixels
+        // keeping in mind that bevy's pixel coords start from the middle of the screen
         player_tf.translation = Vec3::new(
-            (player.x as f32 - 10.0) * TILE_SIZE,
-            (player.y as f32 - 10.0) * TILE_SIZE,
+            (new_x as f32 - 10.0) * TILE_SIZE,
+            (new_y as f32 - 10.0) * TILE_SIZE,
             PLAYER_Z,
         );
     }

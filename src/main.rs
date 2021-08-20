@@ -6,14 +6,17 @@ use map::GameMapPlugin;
 use player::PlayerPlugin;
 
 const TILE_SIZE: f32 = 24.0;
-const SCALE: f32 = 1.0;
 const PLAYER_Z: f32 = 5.0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum GameState {
     LoadingResources,
     MapLoaded,
-    PlayerSpawned,
+}
+
+struct Collidable {
+    pub x: i32,
+    pub y: i32,
 }
 
 fn main() {

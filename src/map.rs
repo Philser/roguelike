@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs::File};
 
 use bevy::prelude::*;
 
-use crate::{player::Player, GameState};
+use crate::{player::Player, Collidable, GameState};
 
 const TILE_SIZE: f32 = 24.0;
 const SCALE: f32 = 1.0;
@@ -17,7 +17,7 @@ impl Plugin for GameMapPlugin {
     }
 }
 
-struct GameMap {
+pub struct GameMap {
     height: i32,
     width: i32,
     tiles: HashMap<MapPosition, TileType>, //TODO: Make this a HashMap of (x,y), TileTyoe
@@ -37,6 +37,7 @@ pub struct Materials {
     pub floor: Handle<ColorMaterial>,
 }
 
+#[derive(PartialEq, Eq)]
 enum TileType {
     Wall,
     Floor,
@@ -51,7 +52,8 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
     let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
     let mut height = 0;
     let mut width = 0;
-    for (y, row) in level.layout.iter().enumerate() {
+    for (y, row) in level.layout.iter().rev().enumerate() {
+        // Without rev(), for some reason everything is upside-down
         height += 1;
         for (x, col) in row.chars().enumerate() {
             match col {
@@ -74,6 +76,15 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
                     );
                 }
                 '@' => {
+                    // Add floor tile and render player on top of it
+                    tiles.insert(
+                        MapPosition {
+                            x: x as i32,
+                            y: y as i32,
+                        },
+                        TileType::Floor,
+                    );
+
                     commands
                         .spawn()
                         .insert_bundle(SpriteBundle {
@@ -148,7 +159,8 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
             TileType::Wall => material = materials.wall.clone(),
         };
 
-        commands.spawn().insert_bundle(SpriteBundle {
+        let mut entity = commands.spawn();
+        entity.insert_bundle(SpriteBundle {
             sprite: Sprite {
                 size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
                 ..Default::default()
@@ -165,5 +177,9 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
             },
             ..Default::default()
         });
+
+        if *tile == TileType::Wall {
+            entity.insert(Collidable { x: pos.x, y: pos.y });
+        }
     }
 }
