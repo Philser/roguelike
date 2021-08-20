@@ -2,7 +2,13 @@ use std::{collections::HashMap, fs::File};
 
 use bevy::prelude::*;
 
-use crate::{player::Player, Collidable, GameState, TILE_SIZE};
+use crate::{
+    damageable::Damageable,
+    monster::Monster,
+    player::{Player, PLAYER_STARTING_HEALTH},
+    position::Position,
+    Collidable, GameState, TILE_SIZE,
+};
 
 const SCALE: f32 = 1.0;
 
@@ -31,7 +37,7 @@ struct MapPosition {
 pub struct Materials {
     pub player: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,
-    pub hostile: Handle<ColorMaterial>,
+    pub monster: Handle<ColorMaterial>,
     pub friendly: Handle<ColorMaterial>,
     pub floor: Handle<ColorMaterial>,
 }
@@ -103,10 +109,56 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
                             },
                             ..Default::default()
                         })
-                        .insert(Player {
+                        .insert(Position {
                             x: x as i32,
                             y: y as i32,
-                        });
+                        })
+                        .insert(Damageable {
+                            health: PLAYER_STARTING_HEALTH,
+                        })
+                        .insert(Player {});
+                }
+                'm' => {
+                    // Add floor tile and render monster on top of it
+                    tiles.insert(
+                        MapPosition {
+                            x: x as i32,
+                            y: y as i32,
+                        },
+                        TileType::Floor,
+                    );
+
+                    commands
+                        .spawn()
+                        .insert_bundle(SpriteBundle {
+                            sprite: Sprite {
+                                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                                ..Default::default()
+                            },
+                            material: materials.monster.clone(),
+                            transform: Transform {
+                                translation: Vec3::new(
+                                    x as f32 * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                                    y as f32 * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                                    0.0,
+                                ),
+                                scale: Vec3::new(SCALE, SCALE, 0.0),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(Position {
+                            x: x as i32,
+                            y: y as i32,
+                        })
+                        .insert(Damageable {
+                            health: PLAYER_STARTING_HEALTH,
+                        })
+                        .insert(Collidable {
+                            x: x as i32,
+                            y: y as i32,
+                        })
+                        .insert(Monster {});
                 }
                 unknown => panic!("Couldn't parse map due to unknown character: {}", unknown),
             }
@@ -137,7 +189,7 @@ fn setup(
     let materials = Materials {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
-        hostile: materials.add(Color::rgb_u8(204, 41, 0).into()),
+        monster: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
         floor: materials.add(Color::rgb(0.01, 0.01, 0.12).into()),
     };

@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
-use crate::{map::GameMap, Collidable, PLAYER_Z, TILE_SIZE};
+use crate::{map::GameMap, position::Position, Collidable, PLAYER_Z, TILE_SIZE};
 
+pub const PLAYER_STARTING_HEALTH: i32 = 100;
 pub struct PlayerPlugin {}
 
 impl Plugin for PlayerPlugin {
@@ -14,17 +15,14 @@ impl Plugin for PlayerPlugin {
 * Note:  The creation of the player entity is done in GameMapPlugin
 */
 
-pub struct Player {
-    pub x: i32,
-    pub y: i32,
-}
+pub struct Player {}
 
 fn try_move_player(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Transform, &mut Player)>,
+    mut query: Query<(&mut Transform, &mut Position, With<Player>)>,
     collidables_query: Query<&Collidable>,
 ) {
-    if let Ok((mut player_tf, mut player)) = query.single_mut() {
+    if let Ok((mut player_tf, mut player_pos, _)) = query.single_mut() {
         let mut tried_move = false;
         let mut move_coordinates: (i32, i32) = (0, 0);
         if keyboard_input.just_pressed(KeyCode::A) {
@@ -47,9 +45,9 @@ fn try_move_player(
         if tried_move {
             // Check for collisions
             //TODO: Consider looking up Walls directly in the Map instead of indirectly via the Collidable query, to
-            // save CPU
-            let new_x = player.x + move_coordinates.0;
-            let new_y = player.y + move_coordinates.1;
+            // save CPU (drawback would be that walls couldnt be non-collidable anymore, if thats ever needed)
+            let new_x = player_pos.x + move_coordinates.0;
+            let new_y = player_pos.y + move_coordinates.1;
 
             for collidable in collidables_query.iter() {
                 if new_x == collidable.x && new_y == collidable.y {
@@ -57,8 +55,8 @@ fn try_move_player(
                 }
             }
 
-            player.x = new_x;
-            player.y = new_y;
+            player_pos.x = new_x;
+            player_pos.y = new_y;
 
             // TODO: Right now I am lazy but this def. needs to
             // be an own function that translates coords to pixels

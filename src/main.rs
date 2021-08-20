@@ -1,5 +1,8 @@
+mod damageable;
 mod map;
+mod monster;
 mod player;
+mod position;
 
 use bevy::prelude::*;
 use map::GameMapPlugin;
