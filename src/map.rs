@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{collections::HashMap, fs::File};
 
 use bevy::prelude::*;
 
@@ -20,40 +20,13 @@ impl Plugin for GameMapPlugin {
 struct GameMap {
     height: i32,
     width: i32,
-    tiles: Vec<Vec<TileType>>, //TODO: Make this a HashMap of (x,y), TileTyoe
+    tiles: HashMap<MapPosition, TileType>, //TODO: Make this a HashMap of (x,y), TileTyoe
 }
 
-impl GameMap {
-    pub fn load_from(level: Level) -> Self {
-        let mut tiles: Vec<Vec<TileType>> = vec![];
-        for row in level.layout {
-            let mut tile_row: Vec<TileType> = vec![];
-            for col in row.chars() {
-                match col {
-                    '#' => {
-                        tile_row.push(TileType::Wall);
-                    }
-                    '.' => {
-                        tile_row.push(TileType::Floor);
-                    }
-                    '@' => { /* Ignore player as they are no tile */ }
-                    unknown => panic!("Couldn't parse map due to unknown character: {}", unknown),
-                }
-            }
-            tiles.push(tile_row);
-        }
-
-        tiles.reverse();
-        GameMap {
-            height: tiles.len() as i32,
-            width: tiles
-                .first()
-                .ok_or("Error loading Map: Map does not have tiles")
-                .unwrap()
-                .len() as i32,
-            tiles,
-        }
-    }
+#[derive(PartialEq, Eq, Hash)]
+struct MapPosition {
+    x: i32,
+    y: i32,
 }
 
 pub struct Materials {
@@ -75,16 +48,30 @@ pub struct Level {
 
 /// Parse level to create game map and entities like the player and enemies.
 fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> GameMap {
-    let mut tiles: Vec<Vec<TileType>> = vec![];
+    let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
+    let mut height = 0;
+    let mut width = 0;
     for (y, row) in level.layout.iter().enumerate() {
-        let mut tile_row: Vec<TileType> = vec![];
+        height += 1;
         for (x, col) in row.chars().enumerate() {
             match col {
                 '#' => {
-                    tile_row.push(TileType::Wall);
+                    tiles.insert(
+                        MapPosition {
+                            x: x as i32,
+                            y: y as i32,
+                        },
+                        TileType::Wall,
+                    );
                 }
                 '.' => {
-                    tile_row.push(TileType::Floor);
+                    tiles.insert(
+                        MapPosition {
+                            x: x as i32,
+                            y: y as i32,
+                        },
+                        TileType::Floor,
+                    );
                 }
                 '@' => {
                     commands
@@ -113,18 +100,13 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
                 }
                 unknown => panic!("Couldn't parse map due to unknown character: {}", unknown),
             }
+            width += 1;
         }
-        tiles.push(tile_row);
     }
 
-    tiles.reverse();
     GameMap {
-        height: tiles.len() as i32,
-        width: tiles
-            .first()
-            .ok_or("Error loading Map: Map does not have tiles")
-            .unwrap()
-            .len() as i32,
+        height,
+        width,
         tiles,
     }
 }
@@ -159,31 +141,29 @@ fn setup(
 }
 
 fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
-    for (y, row) in map.tiles.iter().enumerate() {
-        for (x, tile) in row.iter().enumerate() {
-            let material: Handle<ColorMaterial>;
-            match tile {
-                TileType::Floor => material = materials.floor.clone(),
-                TileType::Wall => material = materials.wall.clone(),
-            };
+    for (pos, tile) in map.tiles.iter() {
+        let material: Handle<ColorMaterial>;
+        match tile {
+            TileType::Floor => material = materials.floor.clone(),
+            TileType::Wall => material = materials.wall.clone(),
+        };
 
-            commands.spawn().insert_bundle(SpriteBundle {
-                sprite: Sprite {
-                    size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
-                    ..Default::default()
-                },
-                material: material.clone(),
-                transform: Transform {
-                    translation: Vec3::new(
-                        (x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
-                        (y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
-                        0.0,
-                    ),
-                    scale: Vec3::new(SCALE, SCALE, 0.0),
-                    ..Default::default()
-                },
+        commands.spawn().insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
                 ..Default::default()
-            });
-        }
+            },
+            material: material.clone(),
+            transform: Transform {
+                translation: Vec3::new(
+                    (pos.x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                    (pos.y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                    0.0,
+                ),
+                scale: Vec3::new(SCALE, SCALE, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
     }
 }
