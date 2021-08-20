@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use map::GameMapPlugin;
 use player::PlayerPlugin;
 
-const TILE_SIZE: f32 = 24.0;
+const TILE_SIZE: f32 = 16.0;
 const PLAYER_Z: f32 = 5.0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -25,7 +25,7 @@ fn main() {
         .insert_resource(WindowDescriptor {
             width: 1280.0,
             height: 720.0,
-            title: "AAAAAAAAHHHHH".to_owned(),
+            title: "Roguelike".to_owned(),
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)

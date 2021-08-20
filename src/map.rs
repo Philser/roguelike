@@ -2,9 +2,8 @@ use std::{collections::HashMap, fs::File};
 
 use bevy::prelude::*;
 
-use crate::{player::Player, Collidable, GameState};
+use crate::{player::Player, Collidable, GameState, TILE_SIZE};
 
-const TILE_SIZE: f32 = 24.0;
 const SCALE: f32 = 1.0;
 
 pub struct GameMapPlugin {}
@@ -20,7 +19,7 @@ impl Plugin for GameMapPlugin {
 pub struct GameMap {
     height: i32,
     width: i32,
-    tiles: HashMap<MapPosition, TileType>, //TODO: Make this a HashMap of (x,y), TileTyoe
+    tiles: HashMap<MapPosition, TileType>,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -95,8 +94,8 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
                             material: materials.player.clone(),
                             transform: Transform {
                                 translation: Vec3::new(
-                                    (x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
-                                    (y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                                    x as f32 * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                                    y as f32 * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
                                     0.0,
                                 ),
                                 scale: Vec3::new(SCALE, SCALE, 0.0),
@@ -168,8 +167,8 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
             material: material.clone(),
             transform: Transform {
                 translation: Vec3::new(
-                    (pos.x as f32 - 10.0) * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
-                    (pos.y as f32 - 10.0) * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                    pos.x as f32 * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
+                    pos.y as f32 * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
                     0.0,
                 ),
                 scale: Vec3::new(SCALE, SCALE, 0.0),
