@@ -9,12 +9,12 @@ use crate::{
     player::{Player, PLAYER_STARTING_HEALTH},
     position::Position,
     utils::rectangle::Rectangle,
-    Collidable, GameState, TILE_SIZE,
+    Collidable, GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 const SCALE: f32 = 1.0;
-const MAP_HEIGHT: i32 = 400;
-const MAP_WIDTH: i32 = 500;
+const MAP_HEIGHT: i32 = 30;
+const MAP_WIDTH: i32 = 60;
 const MAX_ROOMS: i32 = 5;
 
 pub struct GameMapPlugin {}
@@ -187,10 +187,12 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
     }
 }
 
-fn generate_map() -> GameMap {
+fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
     let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
 
     // Init world to be all walls
+
+    println!("Init world");
     for x in 0..MAP_WIDTH {
         for y in 0..MAP_HEIGHT {
             tiles.insert(MapPosition { x, y }, TileType::Wall);
@@ -209,13 +211,19 @@ fn generate_map() -> GameMap {
     let room_max_width = MAP_WIDTH / 5;
     let mut rooms: Vec<Rectangle> = vec![];
 
-    for _ in 0..MAX_ROOMS {
+    for room_no in 0..MAX_ROOMS {
         let new_room = generate_room(
             room_min_height,
             room_max_height,
             room_min_width,
             room_max_width,
         );
+
+        if room_no == 0 {
+            // Place player in first room
+            let (x, y) = &new_room.get_center();
+            spawn_player(&mut commands, &materials, *x, *y);
+        }
 
         let mut room_ok = true;
         for room in rooms.iter() {
@@ -232,6 +240,36 @@ fn generate_map() -> GameMap {
     }
 
     game_map
+}
+
+fn spawn_player(commands: &mut Commands, materials: &Materials, x: i32, y: i32) {
+    commands
+        .spawn()
+        .insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                ..Default::default()
+            },
+            material: materials.player.clone(),
+            transform: Transform {
+                translation: Vec3::new(
+                    x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0, // TODO: Right now I am lazy but this def. needs to
+                    y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0, // TODO: be an own function that takes half the window size instead of 500
+                    0.0,
+                ),
+                scale: Vec3::new(SCALE, SCALE, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Position {
+            x: x as i32,
+            y: y as i32,
+        })
+        .insert(Damageable {
+            health: PLAYER_STARTING_HEALTH,
+        })
+        .insert(Player {});
 }
 
 fn generate_room(min_height: i32, max_height: i32, min_width: i32, max_width: i32) -> Rectangle {
@@ -259,8 +297,7 @@ fn setup(
         floor: materials.add(Color::rgb(0.01, 0.01, 0.12).into()),
     };
 
-    // let map = parse_level(&mut commands, &materials, level1);
-    let map = generate_map();
+    let map = generate_map(&mut commands, &materials);
 
     commands.insert_resource(map);
 
@@ -269,6 +306,7 @@ fn setup(
 }
 
 fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
+    println!("Render");
     for (pos, tile) in map.tiles.iter() {
         let material: Handle<ColorMaterial>;
         match tile {
@@ -285,8 +323,8 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
             material: material.clone(),
             transform: Transform {
                 translation: Vec3::new(
-                    pos.x as f32 * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
-                    pos.y as f32 * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
+                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0, // TODO: Right now I am lazy but this def. needs to
+                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0, // TODO: be an own function that takes half the window size instead of 500
                     0.0,
                 ),
                 scale: Vec3::new(SCALE, SCALE, 0.0),

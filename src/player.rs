@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::{map::GameMap, position::Position, Collidable, PLAYER_Z, TILE_SIZE};
+use crate::{
+    map::GameMap, position::Position, Collidable, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+};
 
 pub const PLAYER_STARTING_HEALTH: i32 = 100;
 pub struct PlayerPlugin {}
@@ -61,8 +63,11 @@ fn try_move_player(
             // TODO: Right now I am lazy but this def. needs to
             // be an own function that translates coords to pixels
             // keeping in mind that bevy's pixel coords start from the middle of the screen
-            player_tf.translation =
-                Vec3::new(new_x as f32 * TILE_SIZE, new_y as f32 * TILE_SIZE, PLAYER_Z);
+            player_tf.translation = Vec3::new(
+                new_x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+                new_y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                PLAYER_Z,
+            );
         }
     }
 }
