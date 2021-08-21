@@ -1,16 +1,21 @@
 use std::{collections::HashMap, fs::File};
 
 use bevy::prelude::*;
+use rand::Rng;
 
 use crate::{
     damageable::Damageable,
     monster::Monster,
     player::{Player, PLAYER_STARTING_HEALTH},
     position::Position,
+    utils::rectangle::Rectangle,
     Collidable, GameState, TILE_SIZE,
 };
 
 const SCALE: f32 = 1.0;
+const MAP_HEIGHT: i32 = 400;
+const MAP_WIDTH: i32 = 500;
+const MAX_ROOMS: i32 = 5;
 
 pub struct GameMapPlugin {}
 
@@ -57,6 +62,7 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
     let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
     let mut height = 0;
     let mut width = 0;
+
     for (y, row) in level.layout.iter().rev().enumerate() {
         // Without rev(), for some reason everything is upside-down
         height += 1;
@@ -173,18 +179,77 @@ fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> 
     }
 }
 
+fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
+    for x in room.x1..=room.x2 {
+        for y in room.y1..=room.y2 {
+            map.tiles.insert(MapPosition { x, y }, TileType::Floor);
+        }
+    }
+}
+
+fn generate_map() -> GameMap {
+    let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
+
+    // Init world to be all walls
+    for x in 0..MAP_WIDTH {
+        for y in 0..MAP_HEIGHT {
+            tiles.insert(MapPosition { x, y }, TileType::Wall);
+        }
+    }
+
+    let mut game_map = GameMap {
+        height: MAP_HEIGHT,
+        width: MAP_WIDTH,
+        tiles,
+    };
+
+    let room_min_height = MAP_HEIGHT / 10;
+    let room_min_width = MAP_WIDTH / 10;
+    let room_max_height = MAP_HEIGHT / 5;
+    let room_max_width = MAP_WIDTH / 5;
+    let mut rooms: Vec<Rectangle> = vec![];
+
+    for _ in 0..MAX_ROOMS {
+        let new_room = generate_room(
+            room_min_height,
+            room_max_height,
+            room_min_width,
+            room_max_width,
+        );
+
+        let mut room_ok = true;
+        for room in rooms.iter() {
+            if room.intersects(&new_room) {
+                // Drop room
+                room_ok = false;
+            }
+        }
+
+        if room_ok {
+            apply_room_to_map(&mut game_map, &new_room);
+            rooms.push(new_room);
+        }
+    }
+
+    game_map
+}
+
+fn generate_room(min_height: i32, max_height: i32, min_width: i32, max_width: i32) -> Rectangle {
+    let mut rand = rand::thread_rng();
+    let height = rand.gen_range(min_height..=max_height);
+    let width = rand.gen_range(min_width..=max_width);
+    let x = rand.gen_range(0..=(MAP_WIDTH - width));
+    let y = rand.gen_range(0..=(MAP_HEIGHT - height));
+
+    Rectangle::new(x, y, width, height)
+}
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut app_state: ResMut<State<GameState>>,
 ) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-
-    let level1_file = File::open("assets/levels/level1.ron").expect("Could not load level 1");
-    let level1 = match ron::de::from_reader(level1_file) {
-        Ok(lvl) => lvl,
-        Err(e) => panic!("Error deserializing RON  file: {}", e),
-    };
 
     let materials = Materials {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
@@ -194,7 +259,8 @@ fn setup(
         floor: materials.add(Color::rgb(0.01, 0.01, 0.12).into()),
     };
 
-    let map = parse_level(&mut commands, &materials, level1);
+    // let map = parse_level(&mut commands, &materials, level1);
+    let map = generate_map();
 
     commands.insert_resource(map);
 

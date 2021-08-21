@@ -3,6 +3,7 @@ mod map;
 mod monster;
 mod player;
 mod position;
+mod utils;
 
 use bevy::prelude::*;
 use map::GameMapPlugin;
