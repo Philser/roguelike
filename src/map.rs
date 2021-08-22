@@ -1,7 +1,11 @@
-use std::{collections::HashMap, fs::File};
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+    fs::File,
+};
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
     damageable::Damageable,
@@ -15,7 +19,7 @@ use crate::{
 const SCALE: f32 = 1.0;
 const MAP_HEIGHT: i32 = 30;
 const MAP_WIDTH: i32 = 60;
-const MAX_ROOMS: i32 = 5;
+const MAX_ROOMS: i32 = 10;
 
 pub struct GameMapPlugin {}
 
@@ -57,128 +61,7 @@ pub struct Level {
     layout: Vec<String>,
 }
 
-/// Parse level to create game map and entities like the player and enemies.
-fn parse_level(commands: &mut Commands, materials: &Materials, level: Level) -> GameMap {
-    let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
-    let mut height = 0;
-    let mut width = 0;
-
-    for (y, row) in level.layout.iter().rev().enumerate() {
-        // Without rev(), for some reason everything is upside-down
-        height += 1;
-        for (x, col) in row.chars().enumerate() {
-            match col {
-                '#' => {
-                    tiles.insert(
-                        MapPosition {
-                            x: x as i32,
-                            y: y as i32,
-                        },
-                        TileType::Wall,
-                    );
-                }
-                '.' => {
-                    tiles.insert(
-                        MapPosition {
-                            x: x as i32,
-                            y: y as i32,
-                        },
-                        TileType::Floor,
-                    );
-                }
-                '@' => {
-                    // Add floor tile and render player on top of it
-                    tiles.insert(
-                        MapPosition {
-                            x: x as i32,
-                            y: y as i32,
-                        },
-                        TileType::Floor,
-                    );
-
-                    commands
-                        .spawn()
-                        .insert_bundle(SpriteBundle {
-                            sprite: Sprite {
-                                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
-                                ..Default::default()
-                            },
-                            material: materials.player.clone(),
-                            transform: Transform {
-                                translation: Vec3::new(
-                                    x as f32 * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
-                                    y as f32 * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
-                                    0.0,
-                                ),
-                                scale: Vec3::new(SCALE, SCALE, 0.0),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(Position {
-                            x: x as i32,
-                            y: y as i32,
-                        })
-                        .insert(Damageable {
-                            health: PLAYER_STARTING_HEALTH,
-                        })
-                        .insert(Player {});
-                }
-                'm' => {
-                    // Add floor tile and render monster on top of it
-                    tiles.insert(
-                        MapPosition {
-                            x: x as i32,
-                            y: y as i32,
-                        },
-                        TileType::Floor,
-                    );
-
-                    commands
-                        .spawn()
-                        .insert_bundle(SpriteBundle {
-                            sprite: Sprite {
-                                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
-                                ..Default::default()
-                            },
-                            material: materials.monster.clone(),
-                            transform: Transform {
-                                translation: Vec3::new(
-                                    x as f32 * TILE_SIZE, // TODO: Right now I am lazy but this def. needs to
-                                    y as f32 * TILE_SIZE, // TODO: be an own function that takes half the window size instead of 500
-                                    0.0,
-                                ),
-                                scale: Vec3::new(SCALE, SCALE, 0.0),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(Position {
-                            x: x as i32,
-                            y: y as i32,
-                        })
-                        .insert(Damageable {
-                            health: PLAYER_STARTING_HEALTH,
-                        })
-                        .insert(Collidable {
-                            x: x as i32,
-                            y: y as i32,
-                        })
-                        .insert(Monster {});
-                }
-                unknown => panic!("Couldn't parse map due to unknown character: {}", unknown),
-            }
-            width += 1;
-        }
-    }
-
-    GameMap {
-        height,
-        width,
-        tiles,
-    }
-}
-
+/// Manifests a room in the game world
 fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
     for x in room.x1..=room.x2 {
         for y in room.y1..=room.y2 {
@@ -187,12 +70,11 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
     }
 }
 
+/// Generate the world map by randomly generating rooms
 fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
     let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
 
     // Init world to be all walls
-
-    println!("Init world");
     for x in 0..MAP_WIDTH {
         for y in 0..MAP_HEIGHT {
             tiles.insert(MapPosition { x, y }, TileType::Wall);
@@ -211,12 +93,15 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
     let room_max_width = MAP_WIDTH / 5;
     let mut rooms: Vec<Rectangle> = vec![];
 
+    let mut rand = rand::thread_rng();
+
     for room_no in 0..MAX_ROOMS {
         let new_room = generate_room(
             room_min_height,
             room_max_height,
             room_min_width,
             room_max_width,
+            &mut rand,
         );
 
         if room_no == 0 {
@@ -237,6 +122,28 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
             apply_room_to_map(&mut game_map, &new_room);
             rooms.push(new_room);
         }
+    }
+
+    let mut prev_room: Option<&Rectangle> = None;
+    for room in rooms.iter() {
+        if let Some(prev) = prev_room {
+            let (prev_x, prev_y) = prev.get_center();
+            let (curr_x, curr_y) = room.get_center();
+
+            // Mix tunnel generation up a little
+            let tunnel_horizontal: Rectangle;
+            let tunnel_vertical: Rectangle;
+            if rand.gen_range(1..=2) == 1 {
+                tunnel_horizontal = generate_horizontal_tunnel(prev_x, curr_x, prev_y);
+                tunnel_vertical = generate_vertical_tunnel(prev_y, curr_y, curr_x);
+            } else {
+                tunnel_vertical = generate_vertical_tunnel(prev_y, curr_y, prev_x);
+                tunnel_horizontal = generate_horizontal_tunnel(prev_x, curr_x, curr_y);
+            }
+            apply_room_to_map(&mut game_map, &tunnel_horizontal);
+            apply_room_to_map(&mut game_map, &tunnel_vertical);
+        }
+        prev_room = Some(room);
     }
 
     game_map
@@ -272,14 +179,41 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, x: i32, y: i32) 
         .insert(Player {});
 }
 
-fn generate_room(min_height: i32, max_height: i32, min_width: i32, max_width: i32) -> Rectangle {
-    let mut rand = rand::thread_rng();
+fn generate_room(
+    min_height: i32,
+    max_height: i32,
+    min_width: i32,
+    max_width: i32,
+    rand: &mut ThreadRng,
+) -> Rectangle {
     let height = rand.gen_range(min_height..=max_height);
     let width = rand.gen_range(min_width..=max_width);
-    let x = rand.gen_range(0..=(MAP_WIDTH - width));
-    let y = rand.gen_range(0..=(MAP_HEIGHT - height));
+    let x = rand.gen_range(1..(MAP_WIDTH - width));
+    let y = rand.gen_range(1..(MAP_HEIGHT - height));
 
     Rectangle::new(x, y, width, height)
+}
+
+fn generate_horizontal_tunnel(x1: i32, x2: i32, y: i32) -> Rectangle {
+    let left = min(x1, x2);
+    let right = max(x1, x2);
+    Rectangle {
+        x1: left,
+        x2: right,
+        y1: y,
+        y2: y,
+    }
+}
+
+fn generate_vertical_tunnel(y1: i32, y2: i32, x: i32) -> Rectangle {
+    let top = min(y1, y2);
+    let bottom = max(y1, y2);
+    Rectangle {
+        x1: x,
+        x2: x,
+        y1: top,
+        y2: bottom,
+    }
 }
 
 fn setup(
@@ -306,7 +240,6 @@ fn setup(
 }
 
 fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
-    println!("Render");
     for (pos, tile) in map.tiles.iter() {
         let material: Handle<ColorMaterial>;
         match tile {

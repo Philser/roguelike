@@ -5,7 +5,10 @@ mod player;
 mod position;
 mod utils;
 
-use bevy::prelude::*;
+use bevy::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    prelude::*,
+};
 use map::GameMapPlugin;
 use player::PlayerPlugin;
 
@@ -38,5 +41,7 @@ fn main() {
         .add_state(GameState::LoadingResources)
         .add_plugin(GameMapPlugin {})
         .add_plugin(PlayerPlugin {})
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
 }
