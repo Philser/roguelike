@@ -1,4 +1,4 @@
-use bevy::prelude::{IntoSystem, Plugin, Query, Res};
+use bevy::prelude::{IntoSystem, Plugin, Query, Res, ResMut};
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting, MapData};
 
 use crate::{
@@ -20,7 +20,7 @@ impl Plugin for ViewshedPlugin {
     }
 }
 
-fn populate_viewshed(map: Res<GameMap>, mut query: Query<(&Position, &mut Viewshed)>) {
+fn populate_viewshed(mut map: ResMut<GameMap>, mut query: Query<(&Position, &mut Viewshed)>) {
     let mut fov = FovRecursiveShadowCasting::new();
 
     for (entity_pos, mut viewshed) in query.iter_mut() {
@@ -55,10 +55,12 @@ fn populate_viewshed(map: Res<GameMap>, mut query: Query<(&Position, &mut Viewsh
         for x in 0..temp_map.width {
             for y in 0..temp_map.height {
                 if temp_map.is_in_fov(x, y) {
-                    viewshed.visible_tiles.push(MapPosition {
+                    let pos = MapPosition {
                         x: x as i32,
                         y: y as i32,
-                    })
+                    };
+                    viewshed.visible_tiles.push(pos.clone());
+                    map.visited_tiles.insert(pos);
                 }
             }
         }

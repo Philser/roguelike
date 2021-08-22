@@ -40,6 +40,7 @@ pub struct GameMap {
     pub height: i32,
     pub width: i32,
     pub tiles: HashMap<MapPosition, TileType>,
+    pub visited_tiles: HashSet<MapPosition>,
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -51,9 +52,11 @@ pub struct MapPosition {
 pub struct Materials {
     pub player: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,
+    pub wall_out_of_sight: Handle<ColorMaterial>,
     pub monster: Handle<ColorMaterial>,
     pub friendly: Handle<ColorMaterial>,
     pub floor: Handle<ColorMaterial>,
+    pub floor_out_of_sight: Handle<ColorMaterial>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -90,6 +93,7 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
         height: MAP_HEIGHT,
         width: MAP_WIDTH,
         tiles,
+        visited_tiles: HashSet::new(),
     };
 
     let room_min_height = MAP_HEIGHT / 10;
@@ -235,9 +239,11 @@ fn setup(
     let materials = Materials {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
+        wall_out_of_sight: materials.add(Color::rgb_u8(140, 140, 140).into()),
         monster: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
-        floor: materials.add(Color::rgb(0.01, 0.01, 0.12).into()),
+        floor: materials.add(Color::rgb_u8(10, 10, 120).into()),
+        floor_out_of_sight: materials.add(Color::rgb_u8(6, 6, 70).into()),
     };
 
     let map = generate_map(&mut commands, &materials);
@@ -249,8 +255,15 @@ fn setup(
 }
 
 fn render_map(
+    map: Res<GameMap>,
+    materials: Res<Materials>,
     viewshed_query: Query<(&Viewshed, &Player)>,
-    mut tile_query: Query<(&mut Visible, &MapPosition, Without<Player>)>,
+    mut tile_query: Query<(
+        &mut Visible,
+        &mut Handle<ColorMaterial>,
+        &MapPosition,
+        Without<Player>,
+    )>,
 ) {
     let mut visibles: HashSet<MapPosition> = HashSet::new();
     if let Ok((viewshed, _)) = viewshed_query.single() {
@@ -259,9 +272,27 @@ fn render_map(
         }
     }
 
-    for (mut visible_entity, entity_pos, _) in tile_query.iter_mut() {
+    for (mut visible_entity, mut handle, entity_pos, _) in tile_query.iter_mut() {
+        let tile_type = map.tiles.get(entity_pos).unwrap();
         if visibles.contains(entity_pos) {
             visible_entity.is_visible = true;
+            match tile_type {
+                &TileType::Floor => {
+                    handle.id = materials.floor.clone().id;
+                }
+                &TileType::Wall => {
+                    handle.id = materials.wall.clone().id;
+                }
+            }
+        } else if map.visited_tiles.contains(entity_pos) {
+            match tile_type {
+                &TileType::Floor => {
+                    handle.id = materials.floor_out_of_sight.clone().id;
+                }
+                &TileType::Wall => {
+                    handle.id = materials.wall_out_of_sight.clone().id;
+                }
+            }
         } else {
             visible_entity.is_visible = false;
         }
