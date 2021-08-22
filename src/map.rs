@@ -1,6 +1,6 @@
 use std::{
     cmp::{max, min},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::File,
 };
 
@@ -10,9 +10,10 @@ use rand::{prelude::ThreadRng, Rng};
 use crate::{
     damageable::Damageable,
     monster::Monster,
-    player::{Player, PLAYER_STARTING_HEALTH},
+    player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
     utils::rectangle::Rectangle,
+    viewshed::Viewshed,
     Collidable, GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
@@ -25,22 +26,26 @@ pub struct GameMapPlugin {}
 
 impl Plugin for GameMapPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system()).add_system_set(
-            SystemSet::on_enter(GameState::MapLoaded).with_system(render_map.system()),
-        );
+        app.add_startup_system(setup.system())
+            .add_system_set(
+                SystemSet::on_enter(GameState::MapLoaded).with_system(spawn_map_tiles.system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::MapLoaded).with_system(render_map.system()),
+            );
     }
 }
 
 pub struct GameMap {
-    height: i32,
-    width: i32,
-    tiles: HashMap<MapPosition, TileType>,
+    pub height: i32,
+    pub width: i32,
+    pub tiles: HashMap<MapPosition, TileType>,
 }
 
-#[derive(PartialEq, Eq, Hash)]
-struct MapPosition {
-    x: i32,
-    y: i32,
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub struct MapPosition {
+    pub x: i32,
+    pub y: i32,
 }
 
 pub struct Materials {
@@ -52,7 +57,7 @@ pub struct Materials {
 }
 
 #[derive(PartialEq, Eq)]
-enum TileType {
+pub enum TileType {
     Wall,
     Floor,
 }
@@ -160,8 +165,8 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, x: i32, y: i32) 
             material: materials.player.clone(),
             transform: Transform {
                 translation: Vec3::new(
-                    x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0, // TODO: Right now I am lazy but this def. needs to
-                    y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0, // TODO: be an own function that takes half the window size instead of 500
+                    x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+                    y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
                     0.0,
                 ),
                 scale: Vec3::new(SCALE, SCALE, 0.0),
@@ -175,6 +180,10 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, x: i32, y: i32) 
         })
         .insert(Damageable {
             health: PLAYER_STARTING_HEALTH,
+        })
+        .insert(Viewshed {
+            visible_tiles: vec![],
+            range: PLAYER_FOV,
         })
         .insert(Player {});
 }
@@ -239,7 +248,27 @@ fn setup(
     app_state.set(GameState::MapLoaded).unwrap();
 }
 
-fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
+fn render_map(
+    viewshed_query: Query<(&Viewshed, &Player)>,
+    mut tile_query: Query<(&mut Visible, &MapPosition, Without<Player>)>,
+) {
+    let mut visibles: HashSet<MapPosition> = HashSet::new();
+    if let Ok((viewshed, _)) = viewshed_query.single() {
+        for pos in &viewshed.visible_tiles {
+            visibles.insert(MapPosition { x: pos.x, y: pos.y });
+        }
+    }
+
+    for (mut visible_entity, entity_pos, _) in tile_query.iter_mut() {
+        if visibles.contains(entity_pos) {
+            visible_entity.is_visible = true;
+        } else {
+            visible_entity.is_visible = false;
+        }
+    }
+}
+
+fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
     for (pos, tile) in map.tiles.iter() {
         let material: Handle<ColorMaterial>;
         match tile {
@@ -248,23 +277,25 @@ fn render_map(mut commands: Commands, map: Res<GameMap>, materials: Res<Material
         };
 
         let mut entity = commands.spawn();
-        entity.insert_bundle(SpriteBundle {
-            sprite: Sprite {
-                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+        entity
+            .insert_bundle(SpriteBundle {
+                sprite: Sprite {
+                    size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                    ..Default::default()
+                },
+                material: material.clone(),
+                transform: Transform {
+                    translation: Vec3::new(
+                        pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+                        pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                        0.0,
+                    ),
+                    scale: Vec3::new(SCALE, SCALE, 0.0),
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            material: material.clone(),
-            transform: Transform {
-                translation: Vec3::new(
-                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0, // TODO: Right now I am lazy but this def. needs to
-                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0, // TODO: be an own function that takes half the window size instead of 500
-                    0.0,
-                ),
-                scale: Vec3::new(SCALE, SCALE, 0.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        });
+            })
+            .insert(MapPosition { x: pos.x, y: pos.y });
 
         if *tile == TileType::Wall {
             entity.insert(Collidable { x: pos.x, y: pos.y });

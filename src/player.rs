@@ -5,6 +5,7 @@ use crate::{
 };
 
 pub const PLAYER_STARTING_HEALTH: i32 = 100;
+pub const PLAYER_FOV: i32 = 10;
 pub struct PlayerPlugin {}
 
 impl Plugin for PlayerPlugin {

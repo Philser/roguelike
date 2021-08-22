@@ -4,6 +4,7 @@ mod monster;
 mod player;
 mod position;
 mod utils;
+mod viewshed;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
@@ -11,6 +12,7 @@ use bevy::{
 };
 use map::GameMapPlugin;
 use player::PlayerPlugin;
+use viewshed::ViewshedPlugin;
 
 const TILE_SIZE: f32 = 16.0;
 const PLAYER_Z: f32 = 5.0;
@@ -38,10 +40,11 @@ fn main() {
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::LoadingResources)
         .add_plugin(GameMapPlugin {})
         .add_plugin(PlayerPlugin {})
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(ViewshedPlugin {})
         .run();
 }
