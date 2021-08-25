@@ -91,6 +91,14 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
         visited_tiles: HashSet::new(),
     };
 
+    generate_rooms(&mut commands, &materials, &mut game_map);
+
+    game_map
+}
+
+/// Creates non-overlapping rooms on the map and fills them with the player (first room) or
+/// monsters (all other rooms)
+fn generate_rooms(mut commands: &mut Commands, materials: &Materials, mut game_map: &mut GameMap) {
     let room_min_height = MAP_HEIGHT / 10;
     let room_min_width = MAP_WIDTH / 10;
     let room_max_height = MAP_HEIGHT / 5;
@@ -108,15 +116,6 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
             &mut rand,
         );
 
-        let (x, y) = &new_room.get_center();
-        if room_no == 0 {
-            // Place player in first room
-            spawn_player(&mut commands, &materials, Position { x: *x, y: *y });
-        } else {
-            // Spawn monster in all other rooms
-            spawn_monster(&mut commands, &materials, Position { x: *x, y: *y });
-        }
-
         let mut room_ok = true;
         for room in rooms.iter() {
             if room.intersects(&new_room) {
@@ -126,6 +125,15 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
         }
 
         if room_ok {
+            let (x, y) = &new_room.get_center();
+            if room_no == 0 {
+                // Place player in first room
+                spawn_player(&mut commands, &materials, Position { x: *x, y: *y });
+            } else {
+                // Spawn monster in all other rooms
+                spawn_monster(&mut commands, &materials, Position { x: *x, y: *y });
+            }
+
             apply_room_to_map(&mut game_map, &new_room);
             rooms.push(new_room);
         }
@@ -152,8 +160,6 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
         }
         prev_room = Some(room);
     }
-
-    game_map
 }
 
 fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
@@ -261,6 +267,8 @@ fn generate_vertical_tunnel(y1: i32, y2: i32, x: i32) -> Rectangle {
     }
 }
 
+/// Generate the map, load materials and spawn the camera.
+/// Sets the game to `GameState::MapLoaded` when done
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -286,12 +294,12 @@ fn setup(
     app_state.set(GameState::MapLoaded).unwrap();
 }
 
-/// Render everything that is visible to the player in the world
+/// Render everything that is visible to the player in the world, i.e. tiles, monsters, and the player
 fn render_map(
     map: Res<GameMap>,
     materials: Res<Materials>,
     mut viewshed_query: Query<(&mut Viewshed, &Player)>,
-    mut tile_query: Query<(
+    tile_query: Query<(
         &mut Visible,
         &mut Handle<ColorMaterial>,
         &Position,
@@ -311,6 +319,31 @@ fn render_map(
         }
     }
 
+    render_tiles(&map, &materials, tile_query, &visibles);
+
+    // Render monsters and players
+    for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
+        if visibles.contains(entity_pos) {
+            // Render everything that is currently visible for the player in its original color
+            visible_entity.is_visible = true;
+        } else {
+            visible_entity.is_visible = false;
+        }
+    }
+}
+
+/// Part of the `render_map` system. Renders tiles of the game map.
+fn render_tiles(
+    map: &Res<GameMap>,
+    materials: &Res<Materials>,
+    mut tile_query: Query<(
+        &mut Visible,
+        &mut Handle<ColorMaterial>,
+        &Position,
+        With<Tile>,
+    )>,
+    visibles: &HashSet<Position>,
+) {
     for (mut visible_entity, mut handle, entity_pos, _) in tile_query.iter_mut() {
         let tile_type = map.tiles.get(entity_pos).unwrap();
         if visibles.contains(entity_pos) {
@@ -338,17 +371,9 @@ fn render_map(
             visible_entity.is_visible = false;
         }
     }
-
-    for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
-        if visibles.contains(entity_pos) {
-            // Render everything that is currently visible for the player in its original color
-            visible_entity.is_visible = true;
-        } else {
-            visible_entity.is_visible = false;
-        }
-    }
 }
 
+/// Iterate over the game map and spawn a tile with the proper material for each cell of the map
 fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
     for (pos, tile) in map.tiles.iter() {
         let material: Handle<ColorMaterial>;
