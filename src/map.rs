@@ -1,7 +1,6 @@
 use std::{
     cmp::{max, min},
     collections::{HashMap, HashSet},
-    fs::File,
 };
 
 use bevy::prelude::*;
@@ -9,7 +8,7 @@ use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
     damageable::Damageable,
-    monster::Monster,
+    monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
     utils::rectangle::Rectangle,
@@ -39,14 +38,8 @@ impl Plugin for GameMapPlugin {
 pub struct GameMap {
     pub height: i32,
     pub width: i32,
-    pub tiles: HashMap<MapPosition, TileType>,
-    pub visited_tiles: HashSet<MapPosition>,
-}
-
-#[derive(PartialEq, Eq, Hash, Clone)]
-pub struct MapPosition {
-    pub x: i32,
-    pub y: i32,
+    pub tiles: HashMap<Position, TileType>,
+    pub visited_tiles: HashSet<Position>,
 }
 
 pub struct Materials {
@@ -69,23 +62,25 @@ pub struct Level {
     layout: Vec<String>,
 }
 
+pub struct Tile {}
+
 /// Manifests a room in the game world
 fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
     for x in room.x1..=room.x2 {
         for y in room.y1..=room.y2 {
-            map.tiles.insert(MapPosition { x, y }, TileType::Floor);
+            map.tiles.insert(Position { x, y }, TileType::Floor);
         }
     }
 }
 
 /// Generate the world map by randomly generating rooms
 fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
-    let mut tiles: HashMap<MapPosition, TileType> = HashMap::new();
+    let mut tiles: HashMap<Position, TileType> = HashMap::new();
 
     // Init world to be all walls
     for x in 0..MAP_WIDTH {
         for y in 0..MAP_HEIGHT {
-            tiles.insert(MapPosition { x, y }, TileType::Wall);
+            tiles.insert(Position { x, y }, TileType::Wall);
         }
     }
 
@@ -113,10 +108,13 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
             &mut rand,
         );
 
+        let (x, y) = &new_room.get_center();
         if room_no == 0 {
             // Place player in first room
-            let (x, y) = &new_room.get_center();
-            spawn_player(&mut commands, &materials, *x, *y);
+            spawn_player(&mut commands, &materials, Position { x: *x, y: *y });
+        } else {
+            // Spawn monster in all other rooms
+            spawn_monster(&mut commands, &materials, Position { x: *x, y: *y });
         }
 
         let mut room_ok = true;
@@ -158,7 +156,7 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
     game_map
 }
 
-fn spawn_player(commands: &mut Commands, materials: &Materials, x: i32, y: i32) {
+fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
@@ -169,27 +167,61 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, x: i32, y: i32) 
             material: materials.player.clone(),
             transform: Transform {
                 translation: Vec3::new(
-                    x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                    y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-                    0.0,
+                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                    5.0,
                 ),
-                scale: Vec3::new(SCALE, SCALE, 0.0),
+                scale: Vec3::new(SCALE, SCALE, 5.0),
                 ..Default::default()
             },
             ..Default::default()
         })
-        .insert(Position {
-            x: x as i32,
-            y: y as i32,
-        })
+        .insert(pos)
         .insert(Damageable {
             health: PLAYER_STARTING_HEALTH,
         })
         .insert(Viewshed {
             visible_tiles: vec![],
             range: PLAYER_FOV,
+            dirty: true,
         })
         .insert(Player {});
+}
+
+fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) {
+    commands
+        .spawn()
+        .insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                ..Default::default()
+            },
+            material: materials.monster.clone(),
+            transform: Transform {
+                translation: Vec3::new(
+                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                    3.0,
+                ),
+                scale: Vec3::new(SCALE, SCALE, 1.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Position {
+            x: pos.x as i32,
+            y: pos.y as i32,
+        })
+        .insert(Damageable {
+            health: MONSTER_STARTING_HEALTH,
+        })
+        .insert(Viewshed {
+            visible_tiles: vec![],
+            range: MONSTER_FOV,
+            dirty: false,
+        })
+        .insert(Collidable { x: pos.x, y: pos.y })
+        .insert(Monster {});
 }
 
 fn generate_room(
@@ -254,27 +286,35 @@ fn setup(
     app_state.set(GameState::MapLoaded).unwrap();
 }
 
+/// Render everything that is visible to the player in the world
 fn render_map(
     map: Res<GameMap>,
     materials: Res<Materials>,
-    viewshed_query: Query<(&Viewshed, &Player)>,
+    mut viewshed_query: Query<(&mut Viewshed, &Player)>,
     mut tile_query: Query<(
         &mut Visible,
         &mut Handle<ColorMaterial>,
-        &MapPosition,
-        Without<Player>,
+        &Position,
+        With<Tile>,
     )>,
+    mut monster_query: Query<(&mut Visible, &Position, Without<Tile>)>,
 ) {
-    let mut visibles: HashSet<MapPosition> = HashSet::new();
-    if let Ok((viewshed, _)) = viewshed_query.single() {
+    let mut visibles: HashSet<Position> = HashSet::new();
+    if let Ok((mut viewshed, _)) = viewshed_query.single_mut() {
+        if !viewshed.dirty {
+            return; // Nothing to render, player didn't move
+        }
+        viewshed.dirty = false;
+
         for pos in &viewshed.visible_tiles {
-            visibles.insert(MapPosition { x: pos.x, y: pos.y });
+            visibles.insert(Position { x: pos.x, y: pos.y });
         }
     }
 
     for (mut visible_entity, mut handle, entity_pos, _) in tile_query.iter_mut() {
         let tile_type = map.tiles.get(entity_pos).unwrap();
         if visibles.contains(entity_pos) {
+            // Render everything that is currently visible for the player in its original color
             visible_entity.is_visible = true;
             match tile_type {
                 &TileType::Floor => {
@@ -285,6 +325,7 @@ fn render_map(
                 }
             }
         } else if map.visited_tiles.contains(entity_pos) {
+            // Render the visited, currently out of sight parts of the map (tiles) in a different color
             match tile_type {
                 &TileType::Floor => {
                     handle.id = materials.floor_out_of_sight.clone().id;
@@ -293,6 +334,15 @@ fn render_map(
                     handle.id = materials.wall_out_of_sight.clone().id;
                 }
             }
+        } else {
+            visible_entity.is_visible = false;
+        }
+    }
+
+    for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
+        if visibles.contains(entity_pos) {
+            // Render everything that is currently visible for the player in its original color
+            visible_entity.is_visible = true;
         } else {
             visible_entity.is_visible = false;
         }
@@ -326,7 +376,8 @@ fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Mat
                 },
                 ..Default::default()
             })
-            .insert(MapPosition { x: pos.x, y: pos.y });
+            .insert(Position { x: pos.x, y: pos.y })
+            .insert(Tile {});
 
         if *tile == TileType::Wall {
             entity.insert(Collidable { x: pos.x, y: pos.y });

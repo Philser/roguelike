@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    map::GameMap, position::Position, Collidable, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    position::Position, viewshed::Viewshed, Collidable, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH,
+    TILE_SIZE,
 };
 
 pub const PLAYER_STARTING_HEALTH: i32 = 100;
@@ -22,10 +23,10 @@ pub struct Player {}
 
 fn try_move_player(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Transform, &mut Position, With<Player>)>,
+    mut query: Query<(&mut Transform, &mut Position, &mut Viewshed, With<Player>)>,
     collidables_query: Query<&Collidable>,
 ) {
-    if let Ok((mut player_tf, mut player_pos, _)) = query.single_mut() {
+    if let Ok((mut player_tf, mut player_pos, mut viewshed, _)) = query.single_mut() {
         let mut tried_move = false;
         let mut move_coordinates: (i32, i32) = (0, 0);
         if keyboard_input.just_pressed(KeyCode::A) {
@@ -69,6 +70,8 @@ fn try_move_player(
                 new_y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
                 PLAYER_Z,
             );
+
+            viewshed.dirty = true;
         }
     }
 }

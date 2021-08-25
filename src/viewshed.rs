@@ -1,8 +1,9 @@
-use bevy::prelude::{IntoSystem, Plugin, Query, Res, ResMut};
+use bevy::prelude::{IntoSystem, Plugin, Query, Res, ResMut, Visible, With};
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting, MapData};
 
 use crate::{
-    map::{GameMap, MapPosition, TileType},
+    map::{GameMap, TileType},
+    monster::Monster,
     player::Player,
     position::Position,
 };
@@ -10,8 +11,9 @@ use crate::{
 pub struct ViewshedPlugin;
 
 pub struct Viewshed {
-    pub visible_tiles: Vec<MapPosition>,
+    pub visible_tiles: Vec<Position>,
     pub range: i32,
+    pub dirty: bool,
 }
 
 impl Plugin for ViewshedPlugin {
@@ -20,17 +22,16 @@ impl Plugin for ViewshedPlugin {
     }
 }
 
-fn populate_viewshed(mut map: ResMut<GameMap>, mut query: Query<(&Position, &mut Viewshed)>) {
+fn populate_viewshed(mut map: ResMut<GameMap>, mut viewshed: Query<(&Position, &mut Viewshed)>) {
     let mut fov = FovRecursiveShadowCasting::new();
 
-    for (entity_pos, mut viewshed) in query.iter_mut() {
-        // We only care about the part of the world that is within fov range anyway
+    for (entity_pos, mut viewshed) in viewshed.iter_mut() {
         let mut temp_map = MapData::new(map.width as usize, map.height as usize);
 
         // Find all walls within this area in the actual game world
         for x in 0..temp_map.width {
             for y in 0..temp_map.height {
-                if let Some(tile) = map.tiles.get(&MapPosition {
+                if let Some(tile) = map.tiles.get(&Position {
                     x: x as i32,
                     y: y as i32,
                 }) {
@@ -55,7 +56,7 @@ fn populate_viewshed(mut map: ResMut<GameMap>, mut query: Query<(&Position, &mut
         for x in 0..temp_map.width {
             for y in 0..temp_map.height {
                 if temp_map.is_in_fov(x, y) {
-                    let pos = MapPosition {
+                    let pos = Position {
                         x: x as i32,
                         y: y as i32,
                     };
@@ -78,7 +79,7 @@ fn populate_viewshed_weird(map: Res<GameMap>, mut query: Query<(&Position, &mut 
         // Find all walls within this area in the actual game world
         for x in 0..temp_map.width {
             for y in 0..temp_map.height {
-                if let Some(tile) = map.tiles.get(&MapPosition {
+                if let Some(tile) = map.tiles.get(&Position {
                     x: x as i32 + entity_pos.x,
                     y: y as i32 + entity_pos.y,
                 }) {
@@ -103,7 +104,7 @@ fn populate_viewshed_weird(map: Res<GameMap>, mut query: Query<(&Position, &mut 
         for x in 0..temp_map.width {
             for y in 0..temp_map.height {
                 if temp_map.is_in_fov(x, y) {
-                    viewshed.visible_tiles.push(MapPosition {
+                    viewshed.visible_tiles.push(Position {
                         x: x as i32 + entity_pos.x,
                         y: y as i32 + entity_pos.y,
                     })
