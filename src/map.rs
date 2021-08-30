@@ -35,11 +35,41 @@ impl Plugin for GameMapPlugin {
     }
 }
 
+/// A structure representing the game world as a collection of points.
+/// The upper left corner is at `Position` (0, 0), the lower right corner
+/// is at (width - 1, height - 1).
 pub struct GameMap {
+    /// Height in
     pub height: i32,
     pub width: i32,
     pub tiles: HashMap<Position, TileType>,
     pub visited_tiles: HashSet<Position>,
+}
+
+impl GameMap {
+    pub fn new(
+        height: i32,
+        width: i32,
+        tiles: HashMap<Position, TileType>,
+        visited_tiles: HashSet<Position>,
+    ) -> Self {
+        return GameMap {
+            height,
+            width,
+            tiles,
+            visited_tiles,
+        };
+    }
+
+    /// Determines whether a given point in the map is an exit (not a wall).
+    pub fn is_exit(&self, position: Position) -> bool {
+        if position.x < 0 || position.x >= self.width || position.y < 0 || position.y >= self.height
+        {
+            return false;
+        }
+
+        return self.tiles.get(&position).unwrap() == &TileType::Floor;
+    }
 }
 
 pub struct Materials {
@@ -84,12 +114,7 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
         }
     }
 
-    let mut game_map = GameMap {
-        height: MAP_HEIGHT,
-        width: MAP_WIDTH,
-        tiles,
-        visited_tiles: HashSet::new(),
-    };
+    let mut game_map = GameMap::new(MAP_HEIGHT, MAP_WIDTH, tiles, HashSet::new());
 
     generate_rooms(&mut commands, &materials, &mut game_map);
 

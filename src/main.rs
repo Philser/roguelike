@@ -23,6 +23,7 @@ const SCREEN_WIDTH: f32 = 1280.0;
 enum GameState {
     LoadingResources,
     MapLoaded,
+    PlayerActive,
 }
 
 struct Collidable {

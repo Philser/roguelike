@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    position::Position, viewshed::Viewshed, Collidable, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH,
-    TILE_SIZE,
+    position::Position, viewshed::Viewshed, Collidable, GameState, PLAYER_Z, SCREEN_HEIGHT,
+    SCREEN_WIDTH, TILE_SIZE,
 };
 
 pub const PLAYER_STARTING_HEALTH: i32 = 100;
@@ -21,10 +21,14 @@ impl Plugin for PlayerPlugin {
 
 pub struct Player {}
 
+/// Listens for keyboard input and moves the player if no obstacle is in the way.
+/// If the player moves, the game state is set to `GameState::GameRunning`.
+/// Else, the game state is set to `GameState::GameRunning`
 fn try_move_player(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut Transform, &mut Position, &mut Viewshed, With<Player>)>,
     collidables_query: Query<&Collidable>,
+    mut app_state: ResMut<State<GameState>>,
 ) {
     if let Ok((mut player_tf, mut player_pos, mut viewshed, _)) = query.single_mut() {
         let mut tried_move = false;
@@ -62,6 +66,10 @@ fn try_move_player(
             player_pos.x = new_x;
             player_pos.y = new_y;
 
+            app_state
+                .push(GameState::PlayerActive)
+                .expect("Could not set game to status PlayerActive");
+
             // TODO: Right now I am lazy but this def. needs to
             // be an own function that translates coords to pixels
             // keeping in mind that bevy's pixel coords start from the middle of the screen
@@ -72,6 +80,12 @@ fn try_move_player(
             );
 
             viewshed.dirty = true;
+        } else {
+            if app_state.current() == &GameState::PlayerActive {
+                app_state
+                    .pop()
+                    .expect("Unexpectedly pop state PlayerActive");
+            }
         }
     }
 }
