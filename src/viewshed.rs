@@ -1,10 +1,8 @@
-use bevy::prelude::{IntoSystem, Plugin, Query, Res, ResMut, Visible, With};
+use bevy::prelude::{IntoSystem, Plugin, Query, Res, ResMut};
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting, MapData};
 
 use crate::{
     map::{GameMap, TileType},
-    monster::Monster,
-    player::Player,
     position::Position,
 };
 

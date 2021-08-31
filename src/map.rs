@@ -61,8 +61,31 @@ impl GameMap {
         };
     }
 
+    pub fn get_traversable_neighbours_with_distance(
+        &self,
+        position: &Position,
+    ) -> Vec<(Position, i32)> {
+        let mut traversable_neighbours = vec![];
+
+        let neighbours = vec![
+            (position.x - 1, position.y),
+            (position.x + 1, position.y),
+            (position.x, position.y + 1),
+            (position.x, position.y - 1),
+        ];
+
+        for neighbour in neighbours {
+            let pos = Position::new(neighbour.0, neighbour.1);
+            if self.is_traversable(&pos) {
+                traversable_neighbours.push((pos, 1)) // 1 == neighbours are always one step away
+            }
+        }
+
+        traversable_neighbours
+    }
+
     /// Determines whether a given point in the map is an exit (not a wall).
-    pub fn is_exit(&self, position: Position) -> bool {
+    fn is_traversable(&self, position: &Position) -> bool {
         if position.x < 0 || position.x >= self.width || position.y < 0 || position.y >= self.height
         {
             return false;

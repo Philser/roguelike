@@ -11,6 +11,7 @@ use bevy::{
     prelude::*,
 };
 use map::GameMapPlugin;
+use monster::MonsterPlugin;
 use player::PlayerPlugin;
 use viewshed::ViewshedPlugin;
 
@@ -47,5 +48,6 @@ fn main() {
         .add_plugin(GameMapPlugin {})
         .add_plugin(PlayerPlugin {})
         .add_plugin(ViewshedPlugin {})
+        .add_plugin(MonsterPlugin {})
         .run();
 }
