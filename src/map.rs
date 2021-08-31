@@ -65,21 +65,16 @@ impl GameMap {
         &self,
         position: &Position,
     ) -> Vec<(Position, i32)> {
-        let mut traversable_neighbours = vec![];
-
-        let neighbours = vec![
+        let traversable_neighbours = vec![
             (position.x - 1, position.y),
             (position.x + 1, position.y),
             (position.x, position.y + 1),
             (position.x, position.y - 1),
-        ];
-
-        for neighbour in neighbours {
-            let pos = Position::new(neighbour.0, neighbour.1);
-            if self.is_traversable(&pos) {
-                traversable_neighbours.push((pos, 1)) // 1 == neighbours are always one step away
-            }
-        }
+        ]
+        .into_iter()
+        .map(|p| (Position::new(p.0, p.1), 1))
+        .filter(|p| self.is_traversable(&p.0))
+        .collect();
 
         traversable_neighbours
     }
@@ -91,7 +86,7 @@ impl GameMap {
             return false;
         }
 
-        return self.tiles.get(&position).unwrap() == &TileType::Floor;
+        return *self.tiles.get(&position).unwrap() == TileType::Floor;
     }
 }
 
