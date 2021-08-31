@@ -45,7 +45,6 @@ fn monster_ai(
         }
 
         if sees_player {
-            println!("Sees player!");
             move_to_player(
                 &mut monster_tf,
                 &mut monster_pos,

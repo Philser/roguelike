@@ -267,7 +267,7 @@ fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) 
         .insert(Viewshed {
             visible_tiles: vec![],
             range: MONSTER_FOV,
-            dirty: false,
+            dirty: true,
         })
         .insert(Collidable { x: pos.x, y: pos.y })
         .insert(Monster {});
@@ -341,7 +341,7 @@ fn setup(
 fn render_map(
     map: Res<GameMap>,
     materials: Res<Materials>,
-    mut viewshed_query: Query<(&mut Viewshed, &Player)>,
+    mut viewshed_query: Query<&mut Viewshed, With<Player>>,
     tile_query: Query<(
         &mut Visible,
         &mut Handle<ColorMaterial>,
@@ -351,15 +351,17 @@ fn render_map(
     mut monster_query: Query<(&mut Visible, &Position, Without<Tile>)>,
 ) {
     let mut visibles: HashSet<Position> = HashSet::new();
-    if let Ok((mut viewshed, _)) = viewshed_query.single_mut() {
-        if !viewshed.dirty {
-            return; // Nothing to render, player didn't move
-        }
-        viewshed.dirty = false;
+    let mut player_viewshed = viewshed_query
+        .single_mut()
+        .expect("Expected player viewshed");
 
-        for pos in &viewshed.visible_tiles {
-            visibles.insert(Position { x: pos.x, y: pos.y });
-        }
+    if !player_viewshed.dirty {
+        return; // Nothing to render, player didn't move
+    }
+    player_viewshed.dirty = false;
+
+    for pos in &player_viewshed.visible_tiles {
+        visibles.insert(Position { x: pos.x, y: pos.y });
     }
 
     render_tiles(&map, &materials, tile_query, &visibles);
@@ -441,6 +443,10 @@ fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Mat
                     ),
                     scale: Vec3::new(SCALE, SCALE, 0.0),
                     ..Default::default()
+                },
+                visible: Visible {
+                    is_visible: false,
+                    is_transparent: false,
                 },
                 ..Default::default()
             })
