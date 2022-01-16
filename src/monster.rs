@@ -1,5 +1,3 @@
-use std::{alloc::System, process::exit};
-
 use bevy::prelude::*;
 
 use crate::{
@@ -15,7 +13,12 @@ pub struct MonsterPlugin {}
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
         app.add_system_set(
-            SystemSet::on_enter(GameState::PlayerActive).with_system(monster_ai.system()),
+            SystemSet::on_enter(GameState::PlayerActive).with_system(
+                monster_ai
+                    .system()
+                    .label("monster_movement")
+                    .after("map_indexer"),
+            ),
         );
     }
 }
@@ -66,20 +69,28 @@ fn move_to_player(
     let position = monster_pos.clone();
     let path_result = pathfinding::directed::astar::astar(
         &position,
-        |position| map.get_traversable_neighbours_with_distance(&position),
-        |pos| pos.get_airline_distance(&player_pos),
-        |pos| pos == player_pos,
+        |position| map.get_traversable_neighbours_with_distance(position),
+        |pos| pos.get_airline_distance(player_pos),
+        |pos| pos.is_adjacent_to(player_pos),
     )
     .expect("Expected path from A*");
 
-    monster_pos.x = path_result.0[1].x;
-    monster_pos.y = path_result.0[1].y;
+    if path_result.0.len() > 1 {
+        // monster is already there
+        monster_pos.x = path_result.0[1].x;
+        monster_pos.y = path_result.0[1].y;
 
-    monster_tf.translation = Vec3::new(
-        monster_pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-        monster_pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-        MONSTER_Z,
-    );
+        println!("I was allowed to move");
+        println!("My target: {:?}:{:?}", monster_pos.x, monster_pos.y);
 
-    viewshed.dirty = true; // Monster moved, re-compute viewshed
+        println!("Blocked: {:?}", map.blocked_tiles);
+
+        monster_tf.translation = Vec3::new(
+            monster_pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+            monster_pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+            MONSTER_Z,
+        );
+
+        viewshed.dirty = true; // Monster moved, re-compute viewshed
+    }
 }

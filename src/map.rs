@@ -44,6 +44,9 @@ pub struct GameMap {
     pub width: i32,
     pub tiles: HashMap<Position, TileType>,
     pub visited_tiles: HashSet<Position>,
+    pub blocked_tiles: HashSet<Position>,
+    // TODO: Could be worthwile to have a separate list of static wall tiles that block
+    // (separate from dynamic blocking collidables like monsters)
 }
 
 impl GameMap {
@@ -52,20 +55,22 @@ impl GameMap {
         width: i32,
         tiles: HashMap<Position, TileType>,
         visited_tiles: HashSet<Position>,
+        blocked_tiles: HashSet<Position>,
     ) -> Self {
-        return GameMap {
+        GameMap {
             height,
             width,
             tiles,
             visited_tiles,
-        };
+            blocked_tiles,
+        }
     }
 
     pub fn get_traversable_neighbours_with_distance(
         &self,
         position: &Position,
     ) -> Vec<(Position, i32)> {
-        let traversable_neighbours = vec![
+        vec![
             (position.x - 1, position.y),
             (position.x + 1, position.y),
             (position.x, position.y + 1),
@@ -73,20 +78,36 @@ impl GameMap {
         ]
         .into_iter()
         .map(|p| (Position::new(p.0, p.1), 1))
-        .filter(|p| self.is_traversable(&p.0))
-        .collect();
-
-        traversable_neighbours
+        .filter(|p| !self.is_blocked(&p.0))
+        .collect()
     }
 
     /// Determines whether a given point in the map is an exit (not a wall).
-    fn is_traversable(&self, position: &Position) -> bool {
+    pub fn is_blocked(&self, position: &Position) -> bool {
         if position.x < 0 || position.x >= self.width || position.y < 0 || position.y >= self.height
         {
-            return false;
+            return true;
         }
 
-        return *self.tiles.get(&position).unwrap() == TileType::Floor;
+        self.blocked_tiles.get(position).is_some()
+    }
+
+    pub fn set_traversable(&mut self, pos: &Position) {
+        self.blocked_tiles.remove(pos);
+    }
+
+    pub fn set_blocked(&mut self, pos: Position) {
+        self.blocked_tiles.insert(pos);
+    }
+
+    // Resets and repopulates the blocker-tile list with the positions of wall tiles
+    pub fn populate_blocked(&mut self) {
+        self.blocked_tiles.clear();
+        for (pos, tile_type) in self.tiles.clone() {
+            if tile_type == TileType::Wall {
+                self.set_blocked(pos);
+            }
+        }
     }
 }
 
@@ -100,7 +121,7 @@ pub struct Materials {
     pub floor_out_of_sight: Handle<ColorMaterial>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum TileType {
     Wall,
     Floor,
@@ -116,7 +137,9 @@ pub struct Tile {}
 fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
     for x in room.x1..=room.x2 {
         for y in room.y1..=room.y2 {
-            map.tiles.insert(Position { x, y }, TileType::Floor);
+            let pos = Position { x, y };
+            map.set_traversable(&pos);
+            map.tiles.insert(pos, TileType::Floor);
         }
     }
 }
@@ -124,17 +147,19 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 /// Generate the world map by randomly generating rooms
 fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
     let mut tiles: HashMap<Position, TileType> = HashMap::new();
+    let mut collidables: HashSet<Position> = HashSet::new();
 
     // Init world to be all walls
     for x in 0..MAP_WIDTH {
         for y in 0..MAP_HEIGHT {
             tiles.insert(Position { x, y }, TileType::Wall);
+            collidables.insert(Position { x, y });
         }
     }
 
-    let mut game_map = GameMap::new(MAP_HEIGHT, MAP_WIDTH, tiles, HashSet::new());
+    let mut game_map = GameMap::new(MAP_HEIGHT, MAP_WIDTH, tiles, HashSet::new(), collidables);
 
-    generate_rooms(&mut commands, &materials, &mut game_map);
+    generate_rooms(&mut commands, materials, &mut game_map);
 
     game_map
 }
@@ -171,10 +196,10 @@ fn generate_rooms(mut commands: &mut Commands, materials: &Materials, mut game_m
             let (x, y) = &new_room.get_center();
             if room_no == 0 {
                 // Place player in first room
-                spawn_player(&mut commands, &materials, Position { x: *x, y: *y });
+                spawn_player(&mut commands, materials, Position { x: *x, y: *y });
             } else {
                 // Spawn monster in all other rooms
-                spawn_monster(&mut commands, &materials, Position { x: *x, y: *y });
+                spawn_monster(&mut commands, materials, Position { x: *x, y: *y });
             }
 
             apply_room_to_map(&mut game_map, &new_room);
@@ -234,7 +259,8 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
             range: PLAYER_FOV,
             dirty: true,
         })
-        .insert(Player {});
+        .insert(Player {})
+        .insert(Collidable {});
 }
 
 fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) {
@@ -269,7 +295,7 @@ fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) 
             range: MONSTER_FOV,
             dirty: true,
         })
-        .insert(Collidable { x: pos.x, y: pos.y })
+        .insert(Collidable {})
         .insert(Monster {});
 }
 
@@ -394,21 +420,21 @@ fn render_tiles(
         if visibles.contains(entity_pos) {
             // Render everything that is currently visible for the player in its original color
             visible_entity.is_visible = true;
-            match tile_type {
-                &TileType::Floor => {
+            match *tile_type {
+                TileType::Floor => {
                     handle.id = materials.floor.clone().id;
                 }
-                &TileType::Wall => {
+                TileType::Wall => {
                     handle.id = materials.wall.clone().id;
                 }
             }
         } else if map.visited_tiles.contains(entity_pos) {
             // Render the visited, currently out of sight parts of the map (tiles) in a different color
-            match tile_type {
-                &TileType::Floor => {
+            match *tile_type {
+                TileType::Floor => {
                     handle.id = materials.floor_out_of_sight.clone().id;
                 }
-                &TileType::Wall => {
+                TileType::Wall => {
                     handle.id = materials.wall_out_of_sight.clone().id;
                 }
             }
@@ -454,7 +480,7 @@ fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Mat
             .insert(Tile {});
 
         if *tile == TileType::Wall {
-            entity.insert(Collidable { x: pos.x, y: pos.y });
+            // entity.insert(Collidable { x: pos.x, y: pos.y });
         }
     }
 }

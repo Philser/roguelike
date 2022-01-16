@@ -1,5 +1,6 @@
 mod damageable;
 mod map;
+mod map_indexer;
 mod monster;
 mod player;
 mod position;
@@ -11,6 +12,7 @@ use bevy::{
     prelude::*,
 };
 use map::GameMapPlugin;
+use map_indexer::MapIndexerPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
 use viewshed::ViewshedPlugin;
@@ -28,10 +30,7 @@ enum GameState {
     PlayerActive,
 }
 
-struct Collidable {
-    pub x: i32,
-    pub y: i32,
-}
+struct Collidable {}
 
 fn main() {
     App::build()
@@ -50,5 +49,6 @@ fn main() {
         .add_plugin(PlayerPlugin {})
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
+        .add_plugin(MapIndexerPlugin {})
         .run();
 }

@@ -67,7 +67,7 @@ fn populate_viewshed(mut map: ResMut<GameMap>, mut viewshed: Query<(&Position, &
 }
 
 // TODO: Revisit and figure out why this didnt work because I really think this could save computing power
-fn populate_viewshed_weird(map: Res<GameMap>, mut query: Query<(&Position, &mut Viewshed)>) {
+fn _populate_viewshed_weird(map: Res<GameMap>, mut query: Query<(&Position, &mut Viewshed)>) {
     let mut fov = FovRecursiveShadowCasting::new();
 
     for (entity_pos, mut viewshed) in query.iter_mut() {
