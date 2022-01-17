@@ -11,7 +11,12 @@ pub struct PlayerPlugin {}
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(try_move_player.system().label("player_movement").after("map_indexer"));
+        app.add_system(
+            try_move_player
+                .system()
+                .label("player_movement")
+                .before("map_indexer"),
+        );
     }
 }
 

@@ -7,13 +7,14 @@ use bevy::prelude::*;
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
-    damageable::Damageable,
+    components::collidable::Collidable,
+    components::damageable::Combattable,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
     utils::rectangle::Rectangle,
     viewshed::Viewshed,
-    Collidable, GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 const SCALE: f32 = 1.0;
@@ -251,7 +252,7 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
             ..Default::default()
         })
         .insert(pos)
-        .insert(Damageable {
+        .insert(Combattable {
             health: PLAYER_STARTING_HEALTH,
         })
         .insert(Viewshed {
@@ -287,7 +288,7 @@ fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) 
             x: pos.x as i32,
             y: pos.y as i32,
         })
-        .insert(Damageable {
+        .insert(Combattable {
             health: MONSTER_STARTING_HEALTH,
         })
         .insert(Viewshed {

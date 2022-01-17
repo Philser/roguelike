@@ -1,4 +1,4 @@
-mod damageable;
+mod components;
 mod map;
 mod map_indexer;
 mod monster;
@@ -29,8 +29,6 @@ enum GameState {
     MapLoaded,
     PlayerActive,
 }
-
-struct Collidable {}
 
 fn main() {
     App::build()

@@ -17,7 +17,7 @@ impl Plugin for MonsterPlugin {
                 monster_ai
                     .system()
                     .label("monster_movement")
-                    .after("map_indexer"),
+                    .before("map_indexer"),
             ),
         );
     }

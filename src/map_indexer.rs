@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{map::GameMap, position::Position, Collidable};
+use crate::{map::GameMap, position::Position, components::collidable::Collidable};
 
 pub struct MapIndexerPlugin {}
 
