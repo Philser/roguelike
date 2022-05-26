@@ -26,7 +26,7 @@ impl Plugin for MonsterPlugin {
 pub struct Monster {}
 
 fn monster_ai(
-    map: Res<GameMap>,
+    mut map: ResMut<GameMap>,
     mut query_set: QuerySet<(
         Query<(&mut Transform, &mut Position, &mut Viewshed), With<Monster>>,
         Query<&Position, With<Player>>,
@@ -52,7 +52,7 @@ fn monster_ai(
                 &mut monster_tf,
                 &mut monster_pos,
                 &player_pos,
-                &map,
+                &mut map,
                 &mut viewshed,
             );
         }
@@ -63,34 +63,35 @@ fn move_to_player(
     monster_tf: &mut Transform,
     monster_pos: &mut Position,
     player_pos: &Position,
-    map: &GameMap,
+    map: &mut GameMap,
     viewshed: &mut Viewshed,
 ) {
     let position = monster_pos.clone();
-    let path_result = pathfinding::directed::astar::astar(
+    let path_result_opt = pathfinding::directed::astar::astar(
         &position,
         |position| map.get_traversable_neighbours_with_distance(position),
         |pos| pos.get_airline_distance(player_pos),
         |pos| pos.is_adjacent_to(player_pos),
-    )
-    .expect("Expected path from A*");
+    );
 
-    if path_result.0.len() > 1 {
-        // monster is already there
-        monster_pos.x = path_result.0[1].x;
-        monster_pos.y = path_result.0[1].y;
+    if let Some(path_result) = path_result_opt {
+        if path_result.0.len() > 1 {
+            // unblock old position
+            map.remove_blocked(&monster_pos);
 
-        println!("I was allowed to move");
-        println!("My target: {:?}:{:?}", monster_pos.x, monster_pos.y);
+            monster_pos.x = path_result.0[1].x;
+            monster_pos.y = path_result.0[1].y;
 
-        println!("Blocked: {:?}", map.blocked_tiles);
+            // block new position
+            map.set_blocked(monster_pos.clone());
 
-        monster_tf.translation = Vec3::new(
-            monster_pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-            monster_pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-            MONSTER_Z,
-        );
+            monster_tf.translation = Vec3::new(
+                monster_pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
+                monster_pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                MONSTER_Z,
+            );
 
-        viewshed.dirty = true; // Monster moved, re-compute viewshed
+            viewshed.dirty = true; // Monster moved, re-compute viewshed
+        }
     }
 }

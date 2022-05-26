@@ -83,7 +83,7 @@ impl GameMap {
         .collect()
     }
 
-    /// Determines whether a given point in the map is an exit (not a wall).
+    /// Determines whether a given point in the map is occupied (monsters, player, walls)
     pub fn is_blocked(&self, position: &Position) -> bool {
         if position.x < 0 || position.x >= self.width || position.y < 0 || position.y >= self.height
         {
@@ -99,6 +99,10 @@ impl GameMap {
 
     pub fn set_blocked(&mut self, pos: Position) {
         self.blocked_tiles.insert(pos);
+    }
+
+    pub fn remove_blocked(&mut self, pos: &Position) {
+        self.blocked_tiles.remove(pos);
     }
 
     // Resets and repopulates the blocker-tile list with the positions of wall tiles
@@ -253,7 +257,10 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
         })
         .insert(pos)
         .insert(Combattable {
-            health: PLAYER_STARTING_HEALTH,
+            hp: PLAYER_STARTING_HEALTH,
+            max_hp: PLAYER_STARTING_HEALTH,
+            defense: 0,
+            power: 0,
         })
         .insert(Viewshed {
             visible_tiles: vec![],
@@ -289,7 +296,10 @@ fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) 
             y: pos.y as i32,
         })
         .insert(Combattable {
-            health: MONSTER_STARTING_HEALTH,
+            hp: MONSTER_STARTING_HEALTH,
+            max_hp: MONSTER_STARTING_HEALTH,
+            defense: 0,
+            power: 0,
         })
         .insert(Viewshed {
             visible_tiles: vec![],

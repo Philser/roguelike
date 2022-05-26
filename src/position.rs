@@ -1,4 +1,4 @@
-use pathfinding::num_traits::{abs, Float};
+use pathfinding::num_traits::abs;
 
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct Position {

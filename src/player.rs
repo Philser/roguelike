@@ -32,7 +32,7 @@ pub struct Player {}
 fn try_move_player(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut Transform, &mut Position, &mut Viewshed, With<Player>)>,
-    map: Res<GameMap>,
+    mut map: ResMut<GameMap>,
     mut app_state: ResMut<State<GameState>>,
 ) {
     if let Ok((mut player_tf, mut player_pos, mut viewshed, _)) = query.single_mut() {
@@ -60,16 +60,28 @@ fn try_move_player(
             let new_x = player_pos.x + move_coordinates.0;
             let new_y = player_pos.y + move_coordinates.1;
 
-            if map.is_blocked(&Position { x: new_x, y: new_y }) {
+            let new_pos = Position { x: new_x, y: new_y };
+
+            if map.is_blocked(&new_pos) {
                 return;
             }
+
+            // unblock old position
+            map.remove_blocked(&player_pos);
+
+            // block new position
+            map.set_blocked(new_pos.clone());
 
             player_pos.x = new_x;
             player_pos.y = new_y;
 
-            app_state
-                .push(GameState::PlayerActive)
-                .expect("Could not set game to status PlayerActive");
+            if app_state.current() != &GameState::PlayerActive {
+                // Seems like sometimes the state is not popped fast enough so we end up trying to push
+                // the PlayerActive state twice
+                app_state
+                    .push(GameState::PlayerActive)
+                    .expect("Could not set game to status PlayerActive");
+            }
 
             // TODO: Right now I am lazy but this def. needs to
             // be an own function that translates coords to pixels
