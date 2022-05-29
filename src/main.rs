@@ -31,7 +31,7 @@ enum GameState {
 }
 
 fn main() {
-    App::build()
+    App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(WindowDescriptor {
             width: SCREEN_WIDTH,
@@ -40,7 +40,7 @@ fn main() {
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
-        .add_plugin(LogDiagnosticsPlugin::default())
+        // .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::LoadingResources)
         .add_plugin(GameMapPlugin {})

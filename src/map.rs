@@ -8,7 +8,7 @@ use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
     components::collidable::Collidable,
-    components::damageable::Combattable,
+    components::combattable::Combattable,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
@@ -25,14 +25,10 @@ const MAX_ROOMS: i32 = 10;
 pub struct GameMapPlugin {}
 
 impl Plugin for GameMapPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
-            .add_system_set(
-                SystemSet::on_enter(GameState::MapLoaded).with_system(spawn_map_tiles.system()),
-            )
-            .add_system_set(
-                SystemSet::on_update(GameState::MapLoaded).with_system(render_map.system()),
-            );
+    fn build(&self, app: &mut App) {
+        app.add_startup_system(setup)
+            .add_system_set(SystemSet::on_enter(GameState::MapLoaded).with_system(spawn_map_tiles))
+            .add_system_set(SystemSet::on_update(GameState::MapLoaded).with_system(render_map));
     }
 }
 
@@ -46,6 +42,7 @@ pub struct GameMap {
     pub tiles: HashMap<Position, TileType>,
     pub visited_tiles: HashSet<Position>,
     pub blocked_tiles: HashSet<Position>,
+    pub tile_content: HashMap<Position, Entity>,
     // TODO: Could be worthwile to have a separate list of static wall tiles that block
     // (separate from dynamic blocking collidables like monsters)
 }
@@ -57,6 +54,7 @@ impl GameMap {
         tiles: HashMap<Position, TileType>,
         visited_tiles: HashSet<Position>,
         blocked_tiles: HashSet<Position>,
+        tile_content: HashMap<Position, Entity>,
     ) -> Self {
         GameMap {
             height,
@@ -64,6 +62,7 @@ impl GameMap {
             tiles,
             visited_tiles,
             blocked_tiles,
+            tile_content,
         }
     }
 
@@ -116,7 +115,8 @@ impl GameMap {
     }
 }
 
-pub struct Materials {
+#[derive(Clone)]
+pub struct MaterialHandles {
     pub player: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,
     pub wall_out_of_sight: Handle<ColorMaterial>,
@@ -131,11 +131,8 @@ pub enum TileType {
     Wall,
     Floor,
 }
-#[derive(Debug, serde::Deserialize)]
-pub struct Level {
-    layout: Vec<String>,
-}
 
+#[derive(Component)]
 pub struct Tile {}
 
 /// Manifests a room in the game world
@@ -150,7 +147,11 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 }
 
 /// Generate the world map by randomly generating rooms
-fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
+fn generate_map(
+    mut commands: &mut Commands,
+    material_handles: &MaterialHandles,
+    materials: &ResMut<Assets<ColorMaterial>>,
+) -> GameMap {
     let mut tiles: HashMap<Position, TileType> = HashMap::new();
     let mut collidables: HashSet<Position> = HashSet::new();
 
@@ -162,16 +163,28 @@ fn generate_map(mut commands: &mut Commands, materials: &Materials) -> GameMap {
         }
     }
 
-    let mut game_map = GameMap::new(MAP_HEIGHT, MAP_WIDTH, tiles, HashSet::new(), collidables);
+    let mut game_map = GameMap::new(
+        MAP_HEIGHT,
+        MAP_WIDTH,
+        tiles,
+        HashSet::new(),
+        collidables,
+        HashMap::new(),
+    );
 
-    generate_rooms(&mut commands, materials, &mut game_map);
+    generate_rooms(&mut commands, material_handles, materials, &mut game_map);
 
     game_map
 }
 
 /// Creates non-overlapping rooms on the map and fills them with the player (first room) or
 /// monsters (all other rooms)
-fn generate_rooms(mut commands: &mut Commands, materials: &Materials, mut game_map: &mut GameMap) {
+fn generate_rooms(
+    mut commands: &mut Commands,
+    material_handles: &MaterialHandles,
+    materials: &ResMut<Assets<ColorMaterial>>,
+    mut game_map: &mut GameMap,
+) {
     let room_min_height = MAP_HEIGHT / 10;
     let room_min_width = MAP_WIDTH / 10;
     let room_max_height = MAP_HEIGHT / 5;
@@ -201,10 +214,20 @@ fn generate_rooms(mut commands: &mut Commands, materials: &Materials, mut game_m
             let (x, y) = &new_room.get_center();
             if room_no == 0 {
                 // Place player in first room
-                spawn_player(&mut commands, materials, Position { x: *x, y: *y });
+                let player_material = materials
+                    .get(material_handles.player.clone())
+                    .expect("cannot spawn player: missing player material");
+                let color = player_material.clone().color;
+
+                spawn_player(&mut commands, color, Position { x: *x, y: *y });
             } else {
                 // Spawn monster in all other rooms
-                spawn_monster(&mut commands, materials, Position { x: *x, y: *y });
+                let monster_material = materials
+                    .get(material_handles.monster.clone())
+                    .expect("cannot spawn monster: missing monster material");
+                let color = monster_material.clone().color;
+
+                spawn_monster(&mut commands, color, Position { x: *x, y: *y });
             }
 
             apply_room_to_map(&mut game_map, &new_room);
@@ -235,15 +258,15 @@ fn generate_rooms(mut commands: &mut Commands, materials: &Materials, mut game_m
     }
 }
 
-fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
+fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                color: color,
+                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                 ..Default::default()
             },
-            material: materials.player.clone(),
             transform: Transform {
                 translation: Vec3::new(
                     pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
@@ -271,15 +294,15 @@ fn spawn_player(commands: &mut Commands, materials: &Materials, pos: Position) {
         .insert(Collidable {});
 }
 
-fn spawn_monster(commands: &mut Commands, materials: &Materials, pos: Position) {
+fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                color: color,
+                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                 ..Default::default()
             },
-            material: materials.monster.clone(),
             transform: Transform {
                 translation: Vec3::new(
                     pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
@@ -356,40 +379,36 @@ fn setup(
 ) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
-    let materials = Materials {
+    let material_handles = MaterialHandles {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
+        
         wall_out_of_sight: materials.add(Color::rgb_u8(140, 140, 140).into()),
         monster: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
         floor: materials.add(Color::rgb_u8(10, 10, 120).into()),
         floor_out_of_sight: materials.add(Color::rgb_u8(6, 6, 70).into()),
     };
+    commands.insert_resource(material_handles.clone());
 
-    let map = generate_map(&mut commands, &materials);
+    let map = generate_map(&mut commands, &material_handles, &materials);
 
     commands.insert_resource(map);
-
-    commands.insert_resource(materials);
     app_state.set(GameState::MapLoaded).unwrap();
 }
 
 /// Render everything that is visible to the player in the world, i.e. tiles, monsters, and the player
 fn render_map(
     map: Res<GameMap>,
-    materials: Res<Materials>,
+    materials: Res<MaterialHandles>,
+    material_assets: Res<Assets<ColorMaterial>>,
     mut viewshed_query: Query<&mut Viewshed, With<Player>>,
-    tile_query: Query<(
-        &mut Visible,
-        &mut Handle<ColorMaterial>,
-        &Position,
-        With<Tile>,
-    )>,
-    mut monster_query: Query<(&mut Visible, &Position, Without<Tile>)>,
+    tile_query: Query<(&mut Visibility, &mut Sprite, &Position, With<Tile>)>,
+    mut monster_query: Query<(&mut Visibility, &Position, Without<Tile>)>,
 ) {
     let mut visibles: HashSet<Position> = HashSet::new();
     let mut player_viewshed = viewshed_query
-        .single_mut()
+        .get_single_mut()
         .expect("Expected player viewshed");
 
     if !player_viewshed.dirty {
@@ -401,7 +420,7 @@ fn render_map(
         visibles.insert(Position { x: pos.x, y: pos.y });
     }
 
-    render_tiles(&map, &materials, tile_query, &visibles);
+    render_tiles(&map, &materials, material_assets, tile_query, &visibles);
 
     // Render monsters and players
     for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
@@ -417,61 +436,74 @@ fn render_map(
 /// Part of the `render_map` system. Renders tiles of the game map.
 fn render_tiles(
     map: &Res<GameMap>,
-    materials: &Res<Materials>,
-    mut tile_query: Query<(
-        &mut Visible,
-        &mut Handle<ColorMaterial>,
-        &Position,
-        With<Tile>,
-    )>,
+    materials: &Res<MaterialHandles>,
+    material_assets: Res<Assets<ColorMaterial>>,
+    mut tile_query: Query<(&mut Visibility, &mut Sprite, &Position, With<Tile>)>,
     visibles: &HashSet<Position>,
 ) {
-    for (mut visible_entity, mut handle, entity_pos, _) in tile_query.iter_mut() {
+    for (mut visible_entity, mut sprite, entity_pos, _) in tile_query.iter_mut() {
         let tile_type = map.tiles.get(entity_pos).unwrap();
+        let material_handler: Handle<ColorMaterial>;
+
         if visibles.contains(entity_pos) {
             // Render everything that is currently visible for the player in its original color
             visible_entity.is_visible = true;
             match *tile_type {
-                TileType::Floor => {
-                    handle.id = materials.floor.clone().id;
-                }
-                TileType::Wall => {
-                    handle.id = materials.wall.clone().id;
-                }
+                TileType::Floor => material_handler = materials.floor.clone(),
+                TileType::Wall => material_handler = materials.wall.clone(),
             }
         } else if map.visited_tiles.contains(entity_pos) {
             // Render the visited, currently out of sight parts of the map (tiles) in a different color
+            visible_entity.is_visible = true;
             match *tile_type {
-                TileType::Floor => {
-                    handle.id = materials.floor_out_of_sight.clone().id;
-                }
-                TileType::Wall => {
-                    handle.id = materials.wall_out_of_sight.clone().id;
-                }
+                TileType::Floor => material_handler = materials.floor_out_of_sight.clone(),
+                TileType::Wall => material_handler = materials.wall_out_of_sight.clone(),
             }
         } else {
             visible_entity.is_visible = false;
+            continue;
         }
+
+        let color = material_assets
+            .get(material_handler)
+            .expect("missing asset for floor tile")
+            .color;
+        sprite.color = color;
     }
 }
 
 /// Iterate over the game map and spawn a tile with the proper material for each cell of the map
-fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Materials>) {
+fn spawn_map_tiles(
+    mut commands: Commands,
+    map: Res<GameMap>,
+    materials: Res<MaterialHandles>,
+    material_assets: Res<Assets<ColorMaterial>>,
+) {
     for (pos, tile) in map.tiles.iter() {
-        let material: Handle<ColorMaterial>;
+        let material: ColorMaterial;
         match tile {
-            TileType::Floor => material = materials.floor.clone(),
-            TileType::Wall => material = materials.wall.clone(),
+            TileType::Floor => {
+                material = material_assets
+                    .get(materials.floor.clone())
+                    .expect("missing floor material in ColorMaterial assets")
+                    .clone()
+            }
+            TileType::Wall => {
+                material = material_assets
+                    .get(materials.wall.clone())
+                    .expect("missing wall material in ColorMaterial assets")
+                    .clone()
+            }
         };
 
         let mut entity = commands.spawn();
         entity
             .insert_bundle(SpriteBundle {
                 sprite: Sprite {
-                    size: Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE),
+                    color: material.color,
+                    custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                     ..Default::default()
                 },
-                material: material.clone(),
                 transform: Transform {
                     translation: Vec3::new(
                         pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
@@ -481,17 +513,10 @@ fn spawn_map_tiles(mut commands: Commands, map: Res<GameMap>, materials: Res<Mat
                     scale: Vec3::new(SCALE, SCALE, 0.0),
                     ..Default::default()
                 },
-                visible: Visible {
-                    is_visible: false,
-                    is_transparent: false,
-                },
+                visibility: Visibility { is_visible: false },
                 ..Default::default()
             })
             .insert(Position { x: pos.x, y: pos.y })
             .insert(Tile {});
-
-        if *tile == TileType::Wall {
-            // entity.insert(Collidable { x: pos.x, y: pos.y });
-        }
     }
 }

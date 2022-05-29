@@ -11,34 +11,31 @@ pub const MONSTER_STARTING_HEALTH: i32 = 50;
 pub struct MonsterPlugin {}
 
 impl Plugin for MonsterPlugin {
-    fn build(&self, app: &mut bevy::prelude::AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_enter(GameState::PlayerActive).with_system(
-                monster_ai
-                    .system()
-                    .label("monster_movement")
-                    .before("map_indexer"),
-            ),
+            SystemSet::on_enter(GameState::PlayerActive)
+                .with_system(monster_ai.label("monster_movement").before("map_indexer")),
         );
     }
 }
 
+#[derive(Component)]
 pub struct Monster {}
 
 fn monster_ai(
     mut map: ResMut<GameMap>,
-    mut query_set: QuerySet<(
+    mut monsters_and_player_set: ParamSet<(
         Query<(&mut Transform, &mut Position, &mut Viewshed), With<Monster>>,
         Query<&Position, With<Player>>,
     )>,
 ) {
-    let player_pos = query_set
-        .q1()
-        .single()
-        .expect("Error querying the player")
+    let player_pos = monsters_and_player_set
+        .p1()
+        .get_single()
+        .expect("no player pos entity found")
         .clone();
 
-    for (mut monster_tf, mut monster_pos, mut viewshed) in query_set.q0_mut().iter_mut() {
+    for (mut monster_tf, mut monster_pos, mut viewshed) in monsters_and_player_set.p0().iter_mut() {
         let mut sees_player = false;
         for viewshed_pos in &viewshed.visible_tiles {
             if player_pos == *viewshed_pos {

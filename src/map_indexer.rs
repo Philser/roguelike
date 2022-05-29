@@ -5,10 +5,9 @@ use crate::{components::collidable::Collidable, map::GameMap, position::Position
 pub struct MapIndexerPlugin {}
 
 impl Plugin for MapIndexerPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system(
             index_map
-                .system()
                 .label("map_indexer")
                 .after("monster_movement")
                 .after("player_movement"),

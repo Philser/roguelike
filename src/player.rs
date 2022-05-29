@@ -10,10 +10,9 @@ pub const PLAYER_FOV: i32 = 10;
 pub struct PlayerPlugin {}
 
 impl Plugin for PlayerPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system(
             try_move_player
-                .system()
                 .label("player_movement")
                 .before("map_indexer"),
         );
@@ -23,7 +22,7 @@ impl Plugin for PlayerPlugin {
 /*
 * Note:  The creation of the player entity is done in GameMapPlugin
 */
-
+#[derive(Component)]
 pub struct Player {}
 
 /// Listens for keyboard input and moves the player if no obstacle is in the way.
@@ -35,7 +34,7 @@ fn try_move_player(
     mut map: ResMut<GameMap>,
     mut app_state: ResMut<State<GameState>>,
 ) {
-    if let Ok((mut player_tf, mut player_pos, mut viewshed, _)) = query.single_mut() {
+    if let Ok((mut player_tf, mut player_pos, mut viewshed, _)) = query.get_single_mut() {
         let mut tried_move = false;
         let mut move_coordinates: (i32, i32) = (0, 0);
         if keyboard_input.just_pressed(KeyCode::A) {

@@ -1,6 +1,7 @@
+use bevy::ecs::component::Component;
 use pathfinding::num_traits::abs;
 
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, Component)]
 pub struct Position {
     pub x: i32,
     pub y: i32,

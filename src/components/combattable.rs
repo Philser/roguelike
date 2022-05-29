@@ -1,3 +1,6 @@
+use bevy::prelude::Component;
+
+#[derive(Component)]
 pub struct Combattable {
     pub max_hp: i32,
     pub hp: i32,
