@@ -25,7 +25,7 @@ pub struct Monster {}
 fn monster_ai(
     mut map: ResMut<GameMap>,
     mut monsters_and_player_set: ParamSet<(
-        Query<(&mut Transform, &mut Position, &mut Viewshed), With<Monster>>,
+        Query<(Entity, &mut Transform, &mut Position, &mut Viewshed), With<Monster>>,
         Query<&Position, With<Player>>,
     )>,
 ) {
@@ -35,7 +35,9 @@ fn monster_ai(
         .expect("no player pos entity found")
         .clone();
 
-    for (mut monster_tf, mut monster_pos, mut viewshed) in monsters_and_player_set.p0().iter_mut() {
+    for (monster_entity, mut monster_tf, mut monster_pos, mut viewshed) in
+        monsters_and_player_set.p0().iter_mut()
+    {
         let mut sees_player = false;
         for viewshed_pos in &viewshed.visible_tiles {
             if player_pos == *viewshed_pos {
@@ -46,6 +48,7 @@ fn monster_ai(
 
         if sees_player {
             move_to_player(
+                monster_entity,
                 &mut monster_tf,
                 &mut monster_pos,
                 &player_pos,
@@ -57,6 +60,7 @@ fn monster_ai(
 }
 
 fn move_to_player(
+    monster_entity: Entity,
     monster_tf: &mut Transform,
     monster_pos: &mut Position,
     player_pos: &Position,
@@ -75,12 +79,14 @@ fn move_to_player(
         if path_result.0.len() > 1 {
             // unblock old position
             map.remove_blocked(&monster_pos);
+            map.remove_tile_content(&monster_pos);
 
             monster_pos.x = path_result.0[1].x;
             monster_pos.y = path_result.0[1].y;
 
             // block new position
             map.set_blocked(monster_pos.clone());
+            map.set_tile_content(monster_pos.clone(), monster_entity.clone());
 
             monster_tf.translation = Vec3::new(
                 monster_pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,

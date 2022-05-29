@@ -8,7 +8,7 @@ use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
     components::collidable::Collidable,
-    components::combattable::Combattable,
+    components::CombatStats::CombatStats,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
@@ -102,6 +102,14 @@ impl GameMap {
 
     pub fn remove_blocked(&mut self, pos: &Position) {
         self.blocked_tiles.remove(pos);
+    }
+
+    pub fn set_tile_content(&mut self, pos: Position, entity: Entity) {
+        self.tile_content.insert(pos, entity);
+    }
+
+    pub fn remove_tile_content(&mut self, pos: &Position) {
+        self.tile_content.remove(pos);
     }
 
     // Resets and repopulates the blocker-tile list with the positions of wall tiles
@@ -279,11 +287,11 @@ fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
             ..Default::default()
         })
         .insert(pos)
-        .insert(Combattable {
+        .insert(CombatStats {
             hp: PLAYER_STARTING_HEALTH,
             max_hp: PLAYER_STARTING_HEALTH,
             defense: 0,
-            power: 0,
+            power: 5,
         })
         .insert(Viewshed {
             visible_tiles: vec![],
@@ -318,11 +326,11 @@ fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
             x: pos.x as i32,
             y: pos.y as i32,
         })
-        .insert(Combattable {
+        .insert(CombatStats {
             hp: MONSTER_STARTING_HEALTH,
             max_hp: MONSTER_STARTING_HEALTH,
             defense: 0,
-            power: 0,
+            power: 5,
         })
         .insert(Viewshed {
             visible_tiles: vec![],
@@ -382,7 +390,7 @@ fn setup(
     let material_handles = MaterialHandles {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
-        
+
         wall_out_of_sight: materials.add(Color::rgb_u8(140, 140, 140).into()),
         monster: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),

@@ -1,3 +1,4 @@
+mod collect_dead;
 mod components;
 mod map;
 mod map_indexer;
@@ -11,6 +12,7 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
 };
+use collect_dead::DeadCollectorPlugin;
 use map::GameMapPlugin;
 use map_indexer::MapIndexerPlugin;
 use monster::MonsterPlugin;
@@ -48,5 +50,6 @@ fn main() {
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
         .add_plugin(MapIndexerPlugin {})
+        .add_plugin(DeadCollectorPlugin {})
         .run();
 }

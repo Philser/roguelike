@@ -1,2 +1,2 @@
 pub mod collidable;
-pub mod combattable;
+pub mod CombatStats;
