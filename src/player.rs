@@ -1,7 +1,12 @@
 use bevy::prelude::*;
 
 use crate::{
-    components::CombatStats::CombatStats, map::GameMap, position::Position, viewshed::Viewshed,
+    components::{
+        suffer_damage::DamageTracker, suffer_damage::SufferDamage, CombatStats::CombatStats,
+    },
+    map::GameMap,
+    position::Position,
+    viewshed::Viewshed,
     GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
@@ -11,10 +16,12 @@ pub struct PlayerPlugin {}
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
-            try_move_player
-                .label("player_movement")
-                .before("map_indexer"),
+        app.add_system_set(
+            SystemSet::on_enter(GameState::PlayerTurn).with_system(
+                try_move_player
+                    .label("player_movement")
+                    .before("map_indexer"),
+            ),
         );
     }
 }
@@ -39,6 +46,7 @@ fn try_move_player(
     )>,
     mut combattable_query: Query<&mut CombatStats>,
     mut map: ResMut<GameMap>,
+    mut damage_tracker: ResMut<DamageTracker>,
     mut app_state: ResMut<State<GameState>>,
 ) {
     if let Ok((player_entity, mut player_tf, mut player_pos, mut viewshed, _)) =
@@ -77,12 +85,11 @@ fn try_move_player(
                     {
                         // We found something to hit here
                         let player_power = combattable[1].power;
-
-                        combattable[0].hurt(player_power);
+                        SufferDamage::add_damage(&mut damage_tracker, entity.clone(), player_power);
                         bevy::log::info!(
                             "Monster has been hit with {} and has {} hp left",
                             player_power,
-                            combattable[0].hp
+                            combattable[0].hp - player_power
                         );
                     } else {
                         bevy::log::warn!(
@@ -98,19 +105,11 @@ fn try_move_player(
             map.remove_tile_content(&player_pos);
 
             // block new position
-            map.set_blocked(new_pos.clone());
-            map.set_tile_content(player_pos.clone(), player_entity.clone());
+            map.set_blocked(new_pos);
+            map.set_tile_content(player_pos.clone(), player_entity);
 
             player_pos.x = new_x;
             player_pos.y = new_y;
-
-            if app_state.current() != &GameState::PlayerActive {
-                // Seems like sometimes the state is not popped fast enough so we end up trying to push
-                // the PlayerActive state twice
-                app_state
-                    .push(GameState::PlayerActive)
-                    .expect("Could not set game to status PlayerActive");
-            }
 
             // TODO: Right now I am lazy but this def. needs to
             // be an own function that translates coords to pixels
@@ -122,10 +121,10 @@ fn try_move_player(
             );
 
             viewshed.dirty = true;
-        } else if app_state.current() == &GameState::PlayerActive {
+
             app_state
-                .pop()
-                .expect("Unexpectedly pop state PlayerActive");
+                .set(GameState::MonsterTurn)
+                .expect("Failed to set Gamestate::MonsterTurn");
         }
     }
 }

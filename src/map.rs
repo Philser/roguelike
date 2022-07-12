@@ -402,7 +402,10 @@ fn setup(
     let map = generate_map(&mut commands, &material_handles, &materials);
 
     commands.insert_resource(map);
-    app_state.set(GameState::MapLoaded).unwrap();
+
+    app_state
+        .set(GameState::PlayerTurn)
+        .expect("Failed to set Gamestate::PlayerTurn");
 }
 
 /// Render everything that is visible to the player in the world, i.e. tiles, monsters, and the player
