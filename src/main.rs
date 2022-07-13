@@ -10,11 +10,8 @@ mod viewshed;
 
 use std::collections::HashMap;
 
-use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::*,
-};
-use components::suffer_damage::DamageTracker;
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use components::{suffer_damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
 use map::GameMapPlugin;
 use map_indexer::MapIndexerPlugin;
@@ -32,6 +29,7 @@ const SCREEN_WIDTH: f32 = 1280.0;
 enum GameState {
     LoadingResources,
     MapLoaded,
+    RenderMap,
     AwaitingInput,
     PlayerTurn,
     MonsterTurn,
@@ -47,6 +45,7 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(DamageTracker(HashMap::new()))
+        .insert_resource(UserInput { x: 0, y: 0 })
         .add_plugins(DefaultPlugins)
         // .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())

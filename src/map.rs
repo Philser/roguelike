@@ -28,7 +28,7 @@ impl Plugin for GameMapPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup)
             .add_system_set(SystemSet::on_enter(GameState::MapLoaded).with_system(spawn_map_tiles))
-            .add_system_set(SystemSet::on_update(GameState::MapLoaded).with_system(render_map));
+            .add_system_set(SystemSet::on_update(GameState::RenderMap).with_system(render_map));
     }
 }
 
@@ -404,7 +404,7 @@ fn setup(
     commands.insert_resource(map);
 
     app_state
-        .set(GameState::PlayerTurn)
+        .set(GameState::MapLoaded)
         .expect("Failed to set Gamestate::PlayerTurn");
 }
 
@@ -416,32 +416,36 @@ fn render_map(
     mut viewshed_query: Query<&mut Viewshed, With<Player>>,
     tile_query: Query<(&mut Visibility, &mut Sprite, &Position, With<Tile>)>,
     mut monster_query: Query<(&mut Visibility, &Position, Without<Tile>)>,
+    mut app_state: ResMut<State<GameState>>,
 ) {
     let mut visibles: HashSet<Position> = HashSet::new();
     let mut player_viewshed = viewshed_query
         .get_single_mut()
         .expect("Expected player viewshed");
 
-    if !player_viewshed.dirty {
-        return; // Nothing to render, player didn't move
-    }
-    player_viewshed.dirty = false;
+    if player_viewshed.dirty {
+        player_viewshed.dirty = false;
 
-    for pos in &player_viewshed.visible_tiles {
-        visibles.insert(Position { x: pos.x, y: pos.y });
-    }
+        for pos in &player_viewshed.visible_tiles {
+            visibles.insert(Position { x: pos.x, y: pos.y });
+        }
 
-    render_tiles(&map, &materials, material_assets, tile_query, &visibles);
+        render_tiles(&map, &materials, material_assets, tile_query, &visibles);
 
-    // Render monsters and players
-    for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
-        if visibles.contains(entity_pos) {
-            // Render everything that is currently visible for the player in its original color
-            visible_entity.is_visible = true;
-        } else {
-            visible_entity.is_visible = false;
+        // Render monsters and players
+        for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
+            if visibles.contains(entity_pos) {
+                // Render everything that is currently visible for the player in its original color
+                visible_entity.is_visible = true;
+            } else {
+                visible_entity.is_visible = false;
+            }
         }
     }
+
+    app_state
+        .set(GameState::AwaitingInput)
+        .expect("Could not set game state after rendering");
 }
 
 /// Part of the `render_map` system. Renders tiles of the game map.
@@ -489,6 +493,7 @@ fn spawn_map_tiles(
     map: Res<GameMap>,
     materials: Res<MaterialHandles>,
     material_assets: Res<Assets<ColorMaterial>>,
+    mut app_state: ResMut<State<GameState>>,
 ) {
     for (pos, tile) in map.tiles.iter() {
         let material: ColorMaterial;
@@ -530,4 +535,8 @@ fn spawn_map_tiles(
             .insert(Position { x: pos.x, y: pos.y })
             .insert(Tile {});
     }
+
+    app_state
+        .set(GameState::RenderMap)
+        .expect("Could not set game state after spawning tiles");
 }

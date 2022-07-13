@@ -79,7 +79,7 @@ fn monster_ai(
     }
 
     app_state
-        .set(GameState::PlayerTurn)
+        .set(GameState::RenderMap)
         .expect("Failed to set GameState::PlayerTurn");
 }
 
