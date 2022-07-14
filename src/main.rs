@@ -47,7 +47,6 @@ fn main() {
         .insert_resource(DamageTracker(HashMap::new()))
         .insert_resource(UserInput { x: 0, y: 0 })
         .add_plugins(DefaultPlugins)
-        // .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::LoadingResources)
         .add_plugin(GameMapPlugin {})

@@ -18,11 +18,8 @@ pub struct PlayerPlugin {}
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_update(GameState::PlayerTurn).with_system(
-                try_move_player
-                    .label("player_movement")
-                    .before("map_indexer"),
-            ),
+            SystemSet::on_update(GameState::PlayerTurn)
+                .with_system(player_turn.label("player_movement").before("map_indexer")),
         );
         app.add_system(player_input.label("await_input").before("map_indexer"));
     }
@@ -73,14 +70,14 @@ fn player_input(
 
         app_state
             .set(GameState::PlayerTurn)
-            .expect("Could not set game state to PlayerTurn")
+            .expect("failed to set game state in player_input")
     }
 }
 
-/// Listens for keyboard input and moves the player if no obstacle is in the way.
-/// If the player moves, the game state is set to `GameState::GameRunning`.
-/// Else, the game state is set to `GameState::GameRunning`
-fn try_move_player(
+/// Moves the player if no obstacle is in the way or tries to fight the obstacle, if fightable.
+/// Is only called if game state is in `GameState::PlayerTurn`.
+/// At the end of the player turn, set the game to `GameState::MonsterTurn`.
+fn player_turn(
     mut player_query: Query<(
         Entity,
         &mut Transform,
@@ -106,12 +103,12 @@ fn try_move_player(
 
             if map.is_blocked(&new_pos) {
                 if let Some(entity) = map.tile_content.get(&new_pos) {
-                    if let Ok(mut combattable) =
+                    if let Ok(combattable) =
                         combattable_query.get_many_mut([*entity, player_entity])
                     {
                         // We found something to hit here
                         let player_power = combattable[1].power;
-                        SufferDamage::add_damage(&mut damage_tracker, entity.clone(), player_power);
+                        SufferDamage::add_damage(&mut damage_tracker, *entity, player_power);
                         bevy::log::info!(
                             "Monster has been hit with {} and has {} hp left",
                             player_power,
@@ -152,7 +149,7 @@ fn try_move_player(
 
             app_state
                 .set(GameState::MonsterTurn)
-                .expect("Failed to set Gamestate::MonsterTurn");
+                .expect("failed to set game state in try_move_player");
         }
     }
 }

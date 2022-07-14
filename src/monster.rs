@@ -47,10 +47,12 @@ fn monster_ai(
     )>,
 ) {
     let q = monsters_and_player_set.p1();
-    let res = q.get_single();
-    let tuple = res.expect("AAAA");
-    let player_pos = tuple.1.to_owned();
-    let player_entity = tuple.0.to_owned();
+    let player_tuple = q
+        .get_single()
+        .expect("failed to retrieve player entity query result");
+
+    let player_pos = player_tuple.1.to_owned();
+    let player_entity = player_tuple.0.to_owned();
 
     for (monster_entity, mut monster_tf, mut monster_pos, mut viewshed, combat_stats) in
         monsters_and_player_set.p0().iter_mut()
@@ -80,7 +82,7 @@ fn monster_ai(
 
     app_state
         .set(GameState::RenderMap)
-        .expect("Failed to set GameState::PlayerTurn");
+        .expect("failed to set game state in monster_ai");
 }
 
 fn move_to_player(

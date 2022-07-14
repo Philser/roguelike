@@ -405,7 +405,7 @@ fn setup(
 
     app_state
         .set(GameState::MapLoaded)
-        .expect("Failed to set Gamestate::PlayerTurn");
+        .expect("failed to set game state in map.setup()");
 }
 
 /// Render everything that is visible to the player in the world, i.e. tiles, monsters, and the player
@@ -445,7 +445,7 @@ fn render_map(
 
     app_state
         .set(GameState::AwaitingInput)
-        .expect("Could not set game state after rendering");
+        .expect("failed to set game state in render_map");
 }
 
 /// Part of the `render_map` system. Renders tiles of the game map.
@@ -538,5 +538,5 @@ fn spawn_map_tiles(
 
     app_state
         .set(GameState::RenderMap)
-        .expect("Could not set game state after spawning tiles");
+        .expect("failed to set game state after spawning tiles");
 }
