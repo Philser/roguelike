@@ -1,2 +1,4 @@
+pub mod CombatStats;
 pub mod collidable;
-pub mod combattable;
+pub mod suffer_damage;
+pub mod user_input;

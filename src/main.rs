@@ -1,4 +1,5 @@
 mod components;
+mod damage_system;
 mod map;
 mod map_indexer;
 mod monster;
@@ -7,10 +8,11 @@ mod position;
 mod utils;
 mod viewshed;
 
-use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::*,
-};
+use std::collections::HashMap;
+
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use components::{suffer_damage::DamageTracker, user_input::UserInput};
+use damage_system::DamageSystemPlugin;
 use map::GameMapPlugin;
 use map_indexer::MapIndexerPlugin;
 use monster::MonsterPlugin;
@@ -27,7 +29,10 @@ const SCREEN_WIDTH: f32 = 1280.0;
 enum GameState {
     LoadingResources,
     MapLoaded,
-    PlayerActive,
+    RenderMap,
+    AwaitingInput,
+    PlayerTurn,
+    MonsterTurn,
 }
 
 fn main() {
@@ -39,8 +44,9 @@ fn main() {
             title: "Roguelike".to_owned(),
             ..Default::default()
         })
+        .insert_resource(DamageTracker(HashMap::new()))
+        .insert_resource(UserInput { x: 0, y: 0 })
         .add_plugins(DefaultPlugins)
-        // .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::LoadingResources)
         .add_plugin(GameMapPlugin {})
@@ -48,5 +54,6 @@ fn main() {
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
         .add_plugin(MapIndexerPlugin {})
+        .add_plugin(DamageSystemPlugin {})
         .run();
 }
