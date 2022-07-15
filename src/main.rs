@@ -11,7 +11,7 @@ mod user_interface;
 
 use std::collections::HashMap;
 
-use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
 use components::{suffer_damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
 use map::GameMapPlugin;
@@ -48,6 +48,7 @@ fn main() {
         })
         .insert_resource(DamageTracker(HashMap::new()))
         .insert_resource(UserInput { x: 0, y: 0 })
+        .insert_resource(WinitSettings::desktop_app())
         .add_plugins(DefaultPlugins)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::LoadingResources)

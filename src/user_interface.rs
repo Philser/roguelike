@@ -10,15 +10,16 @@ impl Plugin for UIPlugin {
 
 
 pub fn setup(mut commands: Commands) {
-    commands.spawn_bundle(
-        NodeBundle {
+    commands.spawn_bundle(UiCameraBundle::default());
+    // root node
+    commands
+        .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                size: Size::new(Val::Percent(100.0), Val::Percent(20.0)),
                 justify_content: JustifyContent::SpaceBetween,
                 ..default()
             },
             color: Color::PURPLE.into(),
             ..default()
-        }
-    );
+        });
 }
