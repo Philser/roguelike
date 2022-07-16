@@ -5,9 +5,9 @@ mod map_indexer;
 mod monster;
 mod player;
 mod position;
+mod user_interface;
 mod utils;
 mod viewshed;
-mod user_interface;
 
 use std::collections::HashMap;
 
@@ -31,7 +31,7 @@ const SCREEN_WIDTH: f32 = 1280.0;
 enum GameState {
     LoadingResources,
     MapLoaded,
-    RenderMap,
+    Render,
     AwaitingInput,
     PlayerTurn,
     MonsterTurn,

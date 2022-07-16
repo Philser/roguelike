@@ -82,7 +82,7 @@ fn monster_ai(
     }
 
     app_state
-        .set(GameState::RenderMap)
+        .set(GameState::Render)
         .expect("failed to set game state in monster_ai");
 }
 

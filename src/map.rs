@@ -22,13 +22,15 @@ const MAP_HEIGHT: i32 = 30;
 const MAP_WIDTH: i32 = 60;
 const MAX_ROOMS: i32 = 10;
 
+pub const RENDER_MAP_LABEL: &str = "render_map";
+
 pub struct GameMapPlugin {}
 
 impl Plugin for GameMapPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup)
             .add_system_set(SystemSet::on_enter(GameState::MapLoaded).with_system(spawn_map_tiles))
-            .add_system_set(SystemSet::on_update(GameState::RenderMap).with_system(render_map));
+            .add_system_set(SystemSet::on_update(GameState::Render).with_system(render_map).label(RENDER_MAP_LABEL));
     }
 }
 
@@ -543,6 +545,6 @@ fn spawn_map_tiles(
     }
 
     app_state
-        .set(GameState::RenderMap)
+        .set(GameState::Render)
         .expect("failed to set game state after spawning tiles");
 }
