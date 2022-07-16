@@ -15,13 +15,15 @@ use crate::{
 pub const MONSTER_FOV: i32 = 8;
 pub const MONSTER_STARTING_HEALTH: i32 = 50;
 
+pub const MONSTER_TURN_LABEL: &str = "monster_turn";
+
 pub struct MonsterPlugin {}
 
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_update(GameState::MonsterTurn)
-                .with_system(monster_ai.label("monster_movement").before("map_indexer")),
+                .with_system(monster_ai.label(MONSTER_TURN_LABEL)),
         );
     }
 }

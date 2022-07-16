@@ -14,7 +14,7 @@ impl Plugin for UIPlugin {
         app.add_startup_system(setup).add_system_set(
             SystemSet::on_update(GameState::Render)
                 .with_system(render_ui)
-                .before(RENDER_MAP_LABEL),
+                .after(RENDER_MAP_LABEL),
         );
     }
 }
@@ -22,8 +22,16 @@ impl Plugin for UIPlugin {
 #[derive(Component)]
 pub struct HealthBar {}
 
-pub fn setup(mut commands: Commands) {
+#[derive(Component)]
+pub struct HealthText {}
+
+pub struct UIFont(Handle<Font>);
+
+pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
+    let font_handle: Handle<Font> = asset_server.load("fonts\\EduVICWANTBeginner-Regular.ttf");
+    commands.insert_resource(UIFont(font_handle.clone()));
+
     // root node
     commands
         .spawn_bundle(NodeBundle {
@@ -55,13 +63,34 @@ pub fn setup(mut commands: Commands) {
                     color: Color::RED.into(),
                     ..default()
                 })
-                .insert(HealthBar {});
+                .insert(HealthBar {})
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(TextBundle {
+                            style: Style {
+                                margin: Rect::all(Val::Px(5.0)),
+                                ..default()
+                            },
+                            text: Text::with_section(
+                                format!("{}/{}", PLAYER_STARTING_HEALTH, PLAYER_STARTING_HEALTH),
+                                TextStyle {
+                                    font: font_handle,
+                                    font_size: 27.0,
+                                    color: Color::WHITE,
+                                },
+                                Default::default(),
+                            ),
+                            ..default()
+                        })
+                        .insert(HealthText {});
+                });
         });
 }
 
 pub fn render_ui(
     player_query: Query<&CombatStats, With<Player>>,
     mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+    mut healthtext_query: Query<&mut Text, With<HealthText>>,
 ) {
     let player = player_query
         .get_single()
@@ -70,5 +99,13 @@ pub fn render_ui(
     let mut healthbar = healthbar_query
         .get_single_mut()
         .expect("Found more or less than exactly one Healthbar entity while rendering UI");
+
     healthbar.size.width = Val::Px(player.hp as f32 * 3.0);
+
+    let mut healthtext = healthtext_query
+        .get_single_mut()
+        .expect("Found more or less than exactly one Healthtext entity while rendering UI");
+
+    // We only care for the first section
+    healthtext.sections[0].value = format!("{}/{}", player.hp, player.max_hp);
 }

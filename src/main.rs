@@ -1,7 +1,6 @@
 mod components;
 mod damage_system;
 mod map;
-mod map_indexer;
 mod monster;
 mod player;
 mod position;
@@ -15,7 +14,6 @@ use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSetti
 use components::{suffer_damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
 use map::GameMapPlugin;
-use map_indexer::MapIndexerPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
 use user_interface::UIPlugin;
@@ -57,7 +55,6 @@ fn main() {
         .add_plugin(PlayerPlugin {})
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
-        .add_plugin(MapIndexerPlugin {})
         .add_plugin(DamageSystemPlugin {})
         .run();
 }

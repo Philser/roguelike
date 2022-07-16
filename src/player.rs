@@ -14,15 +14,17 @@ use crate::{
 
 pub const PLAYER_STARTING_HEALTH: i32 = 100;
 pub const PLAYER_FOV: i32 = 10;
+
+pub const PLAYER_TURN_LABEL: &str = "player_turn";
 pub struct PlayerPlugin {}
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_update(GameState::PlayerTurn)
-                .with_system(player_turn.label("player_movement").before("map_indexer")),
+                .with_system(player_turn.label(PLAYER_TURN_LABEL)),
         );
-        app.add_system(player_input.label("await_input").before("map_indexer"));
+        app.add_system(player_input.label("await_input"));
     }
 }
 

@@ -1,13 +1,26 @@
 use bevy::prelude::*;
 
 use crate::components::{suffer_damage::DamageTracker, CombatStats::CombatStats};
+use crate::monster::MONSTER_TURN_LABEL;
+use crate::player::PLAYER_TURN_LABEL;
+use crate::GameState;
 use crate::{map::GameMap, position::Position};
 
 pub struct DamageSystemPlugin {}
 
 impl Plugin for DamageSystemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(apply_damage);
+        // app.add_system(apply_damage);
+        app.add_system_set(
+            SystemSet::on_update(GameState::PlayerTurn)
+                .with_system(apply_damage)
+                .after(PLAYER_TURN_LABEL),
+        );
+        app.add_system_set(
+            SystemSet::on_update(GameState::MonsterTurn)
+                .with_system(apply_damage)
+                .after(MONSTER_TURN_LABEL),
+        );
         app.add_system(collect_dead);
     }
 }
