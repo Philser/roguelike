@@ -7,6 +7,7 @@ use crate::{
     map::GameMap,
     player::Player,
     position::Position,
+    utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
     GameState, MONSTER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
@@ -71,7 +72,7 @@ fn monster_ai(
                 &mut monster_tf,
                 &mut monster_pos,
                 &player_pos,
-                &combat_stats,
+                combat_stats,
                 &mut map,
                 &mut viewshed,
                 &mut damage_tracker,
@@ -107,8 +108,8 @@ fn move_to_player(
     if let Some(path_result) = path_result_opt {
         if path_result.0.len() > 1 {
             // unblock old position
-            map.remove_blocked(&monster_pos);
-            map.remove_tile_content(&monster_pos);
+            map.remove_blocked(monster_pos);
+            map.remove_tile_content(monster_pos);
 
             monster_pos.x = path_result.0[1].x;
             monster_pos.y = path_result.0[1].y;
@@ -117,10 +118,12 @@ fn move_to_player(
             map.set_blocked(monster_pos.clone());
             map.set_tile_content(monster_pos.clone(), monster_entity);
 
-            monster_tf.translation = Vec3::new(
-                monster_pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                monster_pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+            monster_tf.translation = map_pos_to_screen_pos(
+                monster_pos,
                 MONSTER_Z,
+                TILE_SIZE,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
             );
 
             viewshed.dirty = true; // Monster moved, re-compute viewshed

@@ -7,6 +7,7 @@ use crate::{
     },
     map::GameMap,
     position::Position,
+    utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
     GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
@@ -132,13 +133,12 @@ fn player_turn(
                 player_pos.x = new_x;
                 player_pos.y = new_y;
 
-                // TODO: Right now I am lazy but this def. needs to
-                // be an own function that translates coords to pixels
-                // keeping in mind that bevy's pixel coords start from the middle of the screen
-                player_tf.translation = Vec3::new(
-                    new_x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                    new_y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                player_tf.translation = map_pos_to_screen_pos(
+                    &player_pos,
                     PLAYER_Z,
+                    TILE_SIZE,
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT,
                 );
 
                 viewshed.dirty = true;

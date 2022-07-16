@@ -12,9 +12,9 @@ use crate::{
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
-    utils::rectangle::Rectangle,
+    utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameState, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 const SCALE: f32 = 1.0;
@@ -271,17 +271,19 @@ fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                color: color,
+                color,
                 custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                 ..Default::default()
             },
             transform: Transform {
-                translation: Vec3::new(
-                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-                    5.0,
+                translation: map_pos_to_screen_pos(
+                    &pos,
+                    PLAYER_Z,
+                    TILE_SIZE,
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT,
                 ),
-                scale: Vec3::new(SCALE, SCALE, 5.0),
+                scale: Vec3::new(SCALE, SCALE, PLAYER_Z),
                 ..Default::default()
             },
             ..Default::default()
@@ -307,17 +309,19 @@ fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                color: color,
+                color,
                 custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                 ..Default::default()
             },
             transform: Transform {
-                translation: Vec3::new(
-                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-                    3.0,
+                translation: map_pos_to_screen_pos(
+                    &pos,
+                    MONSTER_Z,
+                    TILE_SIZE,
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT,
                 ),
-                scale: Vec3::new(SCALE, SCALE, 1.0),
+                scale: Vec3::new(SCALE, SCALE, MONSTER_Z),
                 ..Default::default()
             },
             ..Default::default()
@@ -521,10 +525,12 @@ fn spawn_map_tiles(
                     ..Default::default()
                 },
                 transform: Transform {
-                    translation: Vec3::new(
-                        pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                        pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                    translation: map_pos_to_screen_pos(
+                        pos,
                         0.0,
+                        TILE_SIZE,
+                        SCREEN_WIDTH,
+                        SCREEN_HEIGHT,
                     ),
                     scale: Vec3::new(SCALE, SCALE, 0.0),
                     ..Default::default()
