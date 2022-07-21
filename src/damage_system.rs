@@ -1,8 +1,11 @@
+use std::default;
+
 use bevy::prelude::*;
 
 use crate::components::{suffer_damage::DamageTracker, CombatStats::CombatStats};
 use crate::monster::MONSTER_TURN_LABEL;
-use crate::player::PLAYER_TURN_LABEL;
+use crate::player::{Player, PLAYER_TURN_LABEL};
+use crate::user_interface::ActionLog;
 use crate::GameState;
 use crate::{map::GameMap, position::Position};
 
@@ -40,11 +43,24 @@ fn apply_damage(
 fn collect_dead(
     mut commands: Commands,
     mut map: ResMut<GameMap>,
+    player_entity: Query<Entity, With<Player>>,
     combat_stats_query: Query<(Entity, &Position, &CombatStats)>,
+    mut action_log: ResMut<ActionLog>,
 ) {
     for (entity, position, combat_stats) in combat_stats_query.iter() {
         if combat_stats.hp <= 0 {
-            bevy::log::info!("Despawning dead entity");
+            let player = player_entity
+                .get_single()
+                .expect("Found 0 or more than one player in collect_dead");
+
+            let text = if player.id() == entity.id() {
+                "You died!"
+            } else {
+                "Monster died"
+            };
+
+            action_log.entries.push(text.to_owned());
+
             commands.entity(entity).despawn();
 
             map.remove_blocked(position);

@@ -191,7 +191,7 @@ fn render_action_log(
     let len = &action_log.entries.len();
     let mut to_iterate = action_log.entries.to_vec();
     if *len > ACTION_LOG_MAX_LINES {
-        let entries = &action_log.entries[*len - ACTION_LOG_MAX_LINES..*len - 1];
+        let entries = &action_log.entries.as_slice()[*len - ACTION_LOG_MAX_LINES..];
         to_iterate = entries.to_vec();
     }
 
