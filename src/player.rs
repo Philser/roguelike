@@ -7,6 +7,7 @@ use crate::{
     },
     map::GameMap,
     position::Position,
+    user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
     GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
@@ -93,6 +94,7 @@ fn player_turn(
     mut damage_tracker: ResMut<DamageTracker>,
     mut app_state: ResMut<State<GameState>>,
     mut user_input_res: ResMut<UserInput>,
+    mut action_log: ResMut<ActionLog>,
 ) {
     if let Ok((player_entity, mut player_tf, mut player_pos, mut viewshed, _)) =
         player_query.get_single_mut()
@@ -111,7 +113,13 @@ fn player_turn(
                     {
                         // We found something to hit here
                         let player_power = combattable[1].power;
-                        SufferDamage::add_damage(&mut damage_tracker, *entity, player_power);
+                        SufferDamage::add_damage(
+                            &mut damage_tracker,
+                            *entity,
+                            player_power,
+                            action_log.as_mut(),
+                            true,
+                        );
                         bevy::log::info!(
                             "Monster has been hit with {} and has {} hp left",
                             player_power,

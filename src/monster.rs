@@ -7,6 +7,7 @@ use crate::{
     map::GameMap,
     player::Player,
     position::Position,
+    user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
     GameState, MONSTER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
@@ -48,6 +49,7 @@ fn monster_ai(
         >,
         Query<(Entity, &Position), With<Player>>,
     )>,
+    mut action_log: ResMut<ActionLog>,
 ) {
     let q = monsters_and_player_set.p1();
     let player_tuple = q
@@ -56,6 +58,8 @@ fn monster_ai(
 
     let player_pos = player_tuple.1.to_owned();
     let player_entity = player_tuple.0.to_owned();
+
+    let action_log_ref = action_log.as_mut();
 
     for (monster_entity, mut monster_tf, mut monster_pos, mut viewshed, combat_stats) in
         monsters_and_player_set.p0().iter_mut()
@@ -79,6 +83,7 @@ fn monster_ai(
                 &mut viewshed,
                 &mut damage_tracker,
                 player_entity,
+                action_log_ref,
             );
         }
     }
@@ -98,6 +103,7 @@ fn move_to_player(
     viewshed: &mut Viewshed,
     damage_tracker: &mut ResMut<DamageTracker>,
     player_entity: Entity,
+    action_log: &mut ActionLog,
 ) {
     let position = monster_pos.clone();
     let path_result_opt = pathfinding::directed::astar::astar(
@@ -131,7 +137,13 @@ fn move_to_player(
             viewshed.dirty = true; // Monster moved, re-compute viewshed
         } else {
             // attack the player in melee
-            SufferDamage::add_damage(damage_tracker, player_entity, monster_combat_stats.power);
+            SufferDamage::add_damage(
+                damage_tracker,
+                player_entity,
+                monster_combat_stats.power,
+                action_log,
+                false,
+            );
             bevy::log::info!("Player has been hit with {}", monster_combat_stats.power,);
         }
     }
