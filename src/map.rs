@@ -7,21 +7,18 @@ use bevy::prelude::*;
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
-    components::collidable::Collidable,
-    components::CombatStats::CombatStats,
-    monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
-    player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
+    player::Player,
     position::Position,
     spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameState, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 pub const SCALE: f32 = 1.0;
-const MAP_HEIGHT: i32 = 30;
-const MAP_WIDTH: i32 = 60;
-const MAX_ROOMS: i32 = 10;
+pub const MAP_HEIGHT: i32 = 30;
+pub const MAP_WIDTH: i32 = 60;
+pub const MAX_ROOMS: i32 = 10;
 
 pub const RENDER_MAP_LABEL: &str = "render_map";
 
@@ -177,7 +174,7 @@ fn generate_map(
         HashMap::new(),
     );
 
-    generate_rooms(&mut commands, material_handles, materials, &mut game_map);
+    generate_rooms(commands, material_handles, materials, &mut game_map);
 
     game_map
 }
@@ -185,10 +182,10 @@ fn generate_map(
 /// Creates non-overlapping rooms on the map and fills them with the player (first room) or
 /// monsters (all other rooms)
 fn generate_rooms(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     material_handles: &MaterialHandles,
     materials: &ResMut<Assets<ColorMaterial>>,
-    mut game_map: &mut GameMap,
+    game_map: &mut GameMap,
 ) {
     let room_min_height = MAP_HEIGHT / 10;
     let room_min_width = MAP_WIDTH / 10;
@@ -207,37 +204,32 @@ fn generate_rooms(
             &mut rand,
         );
 
-        let mut room_ok = true;
         for room in rooms.iter() {
             if room.intersects(&new_room) {
-                // Drop room
-                room_ok = false;
+                continue;
             }
         }
+        if room_no == 0 {
+            // Place player in first room
+            let player_material = materials
+                .get(material_handles.player.clone())
+                .expect("cannot spawn player: missing player material");
+            let color = player_material.clone().color;
 
-        if room_ok {
             let (x, y) = &new_room.get_center();
-            if room_no == 0 {
-                // Place player in first room
-                let player_material = materials
-                    .get(material_handles.player.clone())
-                    .expect("cannot spawn player: missing player material");
-                let color = player_material.clone().color;
+            spawn_player(commands, color, Position { x: *x, y: *y });
+        } else {
+            // Spawn monster in all other rooms
+            let monster_material = materials
+                .get(material_handles.monster.clone())
+                .expect("cannot spawn monster: missing monster material");
+            let color = monster_material.clone().color;
 
-                spawn_player(commands, color, Position { x: *x, y: *y });
-            } else {
-                // Spawn monster in all other rooms
-                let monster_material = materials
-                    .get(material_handles.monster.clone())
-                    .expect("cannot spawn monster: missing monster material");
-                let color = monster_material.clone().color;
-
-                spawner::spawn_monster(commands, color, Position { x: *x, y: *y });
-            }
-
-            apply_room_to_map(game_map, &new_room);
-            rooms.push(new_room);
+            spawner::spawn_room(commands, color, &new_room, &mut rand);
         }
+
+        apply_room_to_map(game_map, &new_room);
+        rooms.push(new_room);
     }
 
     let mut prev_room: Option<&Rectangle> = None;
