@@ -1,22 +1,22 @@
 mod components;
 mod damage_system;
 mod map;
-mod map_indexer;
 mod monster;
 mod player;
 mod position;
+mod user_interface;
 mod utils;
 mod viewshed;
 
 use std::collections::HashMap;
 
-use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
 use components::{suffer_damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
 use map::GameMapPlugin;
-use map_indexer::MapIndexerPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
+use user_interface::UIPlugin;
 use viewshed::ViewshedPlugin;
 
 const TILE_SIZE: f32 = 16.0;
@@ -29,7 +29,7 @@ const SCREEN_WIDTH: f32 = 1280.0;
 enum GameState {
     LoadingResources,
     MapLoaded,
-    RenderMap,
+    Render,
     AwaitingInput,
     PlayerTurn,
     MonsterTurn,
@@ -46,14 +46,15 @@ fn main() {
         })
         .insert_resource(DamageTracker(HashMap::new()))
         .insert_resource(UserInput { x: 0, y: 0 })
+        .insert_resource(WinitSettings::desktop_app())
         .add_plugins(DefaultPlugins)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_state(GameState::LoadingResources)
+        .add_plugin(UIPlugin {})
         .add_plugin(GameMapPlugin {})
         .add_plugin(PlayerPlugin {})
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
-        .add_plugin(MapIndexerPlugin {})
         .add_plugin(DamageSystemPlugin {})
         .run();
 }

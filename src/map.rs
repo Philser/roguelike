@@ -12,9 +12,9 @@ use crate::{
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
-    utils::rectangle::Rectangle,
+    utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameState, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 const SCALE: f32 = 1.0;
@@ -22,13 +22,19 @@ const MAP_HEIGHT: i32 = 30;
 const MAP_WIDTH: i32 = 60;
 const MAX_ROOMS: i32 = 10;
 
+pub const RENDER_MAP_LABEL: &str = "render_map";
+
 pub struct GameMapPlugin {}
 
 impl Plugin for GameMapPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup)
             .add_system_set(SystemSet::on_enter(GameState::MapLoaded).with_system(spawn_map_tiles))
-            .add_system_set(SystemSet::on_update(GameState::RenderMap).with_system(render_map));
+            .add_system_set(
+                SystemSet::on_update(GameState::Render)
+                    .with_system(render_map)
+                    .label(RENDER_MAP_LABEL),
+            );
     }
 }
 
@@ -110,16 +116,6 @@ impl GameMap {
 
     pub fn remove_tile_content(&mut self, pos: &Position) {
         self.tile_content.remove(pos);
-    }
-
-    // Resets and repopulates the blocker-tile list with the positions of wall tiles
-    pub fn populate_blocked(&mut self) {
-        self.blocked_tiles.clear();
-        for (pos, tile_type) in self.tiles.clone() {
-            if tile_type == TileType::Wall {
-                self.set_blocked(pos);
-            }
-        }
     }
 }
 
@@ -271,17 +267,19 @@ fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                color: color,
+                color,
                 custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                 ..Default::default()
             },
             transform: Transform {
-                translation: Vec3::new(
-                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-                    5.0,
+                translation: map_pos_to_screen_pos(
+                    &pos,
+                    PLAYER_Z,
+                    TILE_SIZE,
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT,
                 ),
-                scale: Vec3::new(SCALE, SCALE, 5.0),
+                scale: Vec3::new(SCALE, SCALE, PLAYER_Z),
                 ..Default::default()
             },
             ..Default::default()
@@ -307,17 +305,19 @@ fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                color: color,
+                color,
                 custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                 ..Default::default()
             },
             transform: Transform {
-                translation: Vec3::new(
-                    pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                    pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
-                    3.0,
+                translation: map_pos_to_screen_pos(
+                    &pos,
+                    MONSTER_Z,
+                    TILE_SIZE,
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT,
                 ),
-                scale: Vec3::new(SCALE, SCALE, 1.0),
+                scale: Vec3::new(SCALE, SCALE, MONSTER_Z),
                 ..Default::default()
             },
             ..Default::default()
@@ -521,10 +521,12 @@ fn spawn_map_tiles(
                     ..Default::default()
                 },
                 transform: Transform {
-                    translation: Vec3::new(
-                        pos.x as f32 * TILE_SIZE - SCREEN_WIDTH / 2.0,
-                        pos.y as f32 * TILE_SIZE - SCREEN_HEIGHT / 2.0,
+                    translation: map_pos_to_screen_pos(
+                        pos,
                         0.0,
+                        TILE_SIZE,
+                        SCREEN_WIDTH,
+                        SCREEN_HEIGHT,
                     ),
                     scale: Vec3::new(SCALE, SCALE, 0.0),
                     ..Default::default()
@@ -537,6 +539,6 @@ fn spawn_map_tiles(
     }
 
     app_state
-        .set(GameState::RenderMap)
+        .set(GameState::Render)
         .expect("failed to set game state after spawning tiles");
 }
