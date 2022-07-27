@@ -122,6 +122,7 @@ pub struct MaterialHandles {
     pub player: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,
     pub wall_out_of_sight: Handle<ColorMaterial>,
+    pub health_potion: Handle<ColorMaterial>,
     pub monster: Handle<ColorMaterial>,
     pub friendly: Handle<ColorMaterial>,
     pub floor: Handle<ColorMaterial>,
@@ -209,6 +210,7 @@ fn generate_rooms(
                 continue;
             }
         }
+
         if room_no == 0 {
             // Place player in first room
             let player_material = materials
@@ -223,9 +225,19 @@ fn generate_rooms(
             let monster_material = materials
                 .get(material_handles.monster.clone())
                 .expect("cannot spawn monster: missing monster material");
-            let color = monster_material.clone().color;
+            let health_potion_material = materials
+                .get(material_handles.health_potion.clone())
+                .expect("cannot spawn monster: missing monster material");
+            let monster_color = monster_material.clone().color;
+            let health_potion_color = health_potion_material.clone().color;
 
-            spawner::spawn_room(commands, color, &new_room, &mut rand);
+            spawner::spawn_room(
+                commands,
+                monster_color,
+                health_potion_color,
+                &new_room,
+                &mut rand,
+            );
         }
 
         apply_room_to_map(game_map, &new_room);
@@ -304,7 +316,7 @@ fn setup(
     let material_handles = MaterialHandles {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
-
+        health_potion: materials.add(Color::rgb_u8(34, 139, 34).into()),
         wall_out_of_sight: materials.add(Color::rgb_u8(140, 140, 140).into()),
         monster: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
@@ -329,7 +341,7 @@ fn render_map(
     material_assets: Res<Assets<ColorMaterial>>,
     mut viewshed_query: Query<&mut Viewshed, With<Player>>,
     tile_query: Query<(&mut Visibility, &mut Sprite, &Position, With<Tile>)>,
-    mut monster_query: Query<(&mut Visibility, &Position, Without<Tile>)>,
+    mut monster_and_items: Query<(&mut Visibility, &Position, Without<Tile>)>,
     mut app_state: ResMut<State<GameState>>,
 ) {
     let mut visibles: HashSet<Position> = HashSet::new();
@@ -346,8 +358,8 @@ fn render_map(
 
         render_tiles(&map, &materials, material_assets, tile_query, &visibles);
 
-        // Render monsters and players
-        for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
+        // Render monsters, items and player
+        for (mut visible_entity, entity_pos, _) in monster_and_items.iter_mut() {
             if visibles.contains(entity_pos) {
                 // Render everything that is currently visible for the player in its original color
                 visible_entity.is_visible = true;

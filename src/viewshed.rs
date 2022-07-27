@@ -74,7 +74,7 @@ fn populate_viewshed_player(
 }
 
 fn populate_viewshed_monsters(
-    mut map: ResMut<GameMap>,
+    map: ResMut<GameMap>,
     mut viewshed_monsters: Query<(&Position, &mut Viewshed, With<Monster>)>,
 ) {
     let mut fov = FovRecursiveShadowCasting::new();

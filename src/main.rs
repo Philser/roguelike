@@ -23,6 +23,7 @@ use viewshed::ViewshedPlugin;
 const TILE_SIZE: f32 = 16.0;
 const PLAYER_Z: f32 = 5.0;
 const MONSTER_Z: f32 = 5.0;
+const ITEM_Z: f32 = 3.0;
 const SCREEN_HEIGHT: f32 = 720.0;
 const SCREEN_WIDTH: f32 = 1280.0;
 
