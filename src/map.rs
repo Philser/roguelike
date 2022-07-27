@@ -12,12 +12,13 @@ use crate::{
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     position::Position,
+    spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
     GameState, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
-const SCALE: f32 = 1.0;
+pub const SCALE: f32 = 1.0;
 const MAP_HEIGHT: i32 = 30;
 const MAP_WIDTH: i32 = 60;
 const MAX_ROOMS: i32 = 10;
@@ -223,7 +224,7 @@ fn generate_rooms(
                     .expect("cannot spawn player: missing player material");
                 let color = player_material.clone().color;
 
-                spawn_player(&mut commands, color, Position { x: *x, y: *y });
+                spawn_player(commands, color, Position { x: *x, y: *y });
             } else {
                 // Spawn monster in all other rooms
                 let monster_material = materials
@@ -231,10 +232,10 @@ fn generate_rooms(
                     .expect("cannot spawn monster: missing monster material");
                 let color = monster_material.clone().color;
 
-                spawn_monster(&mut commands, color, Position { x: *x, y: *y });
+                spawner::spawn_monster(commands, color, Position { x: *x, y: *y });
             }
 
-            apply_room_to_map(&mut game_map, &new_room);
+            apply_room_to_map(game_map, &new_room);
             rooms.push(new_room);
         }
     }
@@ -255,90 +256,11 @@ fn generate_rooms(
                 tunnel_vertical = generate_vertical_tunnel(prev_y, curr_y, prev_x);
                 tunnel_horizontal = generate_horizontal_tunnel(prev_x, curr_x, curr_y);
             }
-            apply_room_to_map(&mut game_map, &tunnel_horizontal);
-            apply_room_to_map(&mut game_map, &tunnel_vertical);
+            apply_room_to_map(game_map, &tunnel_horizontal);
+            apply_room_to_map(game_map, &tunnel_vertical);
         }
         prev_room = Some(room);
     }
-}
-
-fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
-    commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
-            sprite: Sprite {
-                color,
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: map_pos_to_screen_pos(
-                    &pos,
-                    PLAYER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
-                ),
-                scale: Vec3::new(SCALE, SCALE, PLAYER_Z),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(pos)
-        .insert(CombatStats {
-            hp: PLAYER_STARTING_HEALTH,
-            max_hp: PLAYER_STARTING_HEALTH,
-            defense: 0,
-            power: 5,
-        })
-        .insert(Viewshed {
-            visible_tiles: vec![],
-            range: PLAYER_FOV,
-            dirty: true,
-        })
-        .insert(Player {})
-        .insert(Collidable {});
-}
-
-fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
-    commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
-            sprite: Sprite {
-                color,
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: map_pos_to_screen_pos(
-                    &pos,
-                    MONSTER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
-                ),
-                scale: Vec3::new(SCALE, SCALE, MONSTER_Z),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Position {
-            x: pos.x as i32,
-            y: pos.y as i32,
-        })
-        .insert(CombatStats {
-            hp: MONSTER_STARTING_HEALTH,
-            max_hp: MONSTER_STARTING_HEALTH,
-            defense: 0,
-            power: 5,
-        })
-        .insert(Viewshed {
-            visible_tiles: vec![],
-            range: MONSTER_FOV,
-            dirty: true,
-        })
-        .insert(Collidable {})
-        .insert(Monster {});
 }
 
 fn generate_room(
