@@ -11,20 +11,32 @@ use crate::{map::GameMap, position::Position};
 
 pub struct DamageSystemPlugin {}
 
+const APPLY_DAMAGE_LABEL: &str = "apply_damage";
+
 impl Plugin for DamageSystemPlugin {
     fn build(&self, app: &mut App) {
         // app.add_system(apply_damage);
         app.add_system_set(
             SystemSet::on_update(GameState::PlayerTurn)
                 .with_system(apply_damage)
-                .after(PLAYER_TURN_LABEL),
+                .after(PLAYER_TURN_LABEL)
+                .label(APPLY_DAMAGE_LABEL),
+        );
+        app.add_system_set(
+            SystemSet::on_update(GameState::PlayerTurn)
+                .with_system(collect_dead)
+                .after(APPLY_DAMAGE_LABEL),
         );
         app.add_system_set(
             SystemSet::on_update(GameState::MonsterTurn)
                 .with_system(apply_damage)
                 .after(MONSTER_TURN_LABEL),
         );
-        app.add_system(collect_dead);
+        app.add_system_set(
+            SystemSet::on_update(GameState::MonsterTurn)
+                .with_system(collect_dead)
+                .after(APPLY_DAMAGE_LABEL),
+        );
     }
 }
 
