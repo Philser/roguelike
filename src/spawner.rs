@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
@@ -11,6 +11,8 @@ use crate::{
     viewshed::Viewshed,
     MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
+
+const MAX_MONSTERS_PER_ROOM: usize = 4;
 
 pub fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
     commands
@@ -51,9 +53,21 @@ pub fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
 }
 
 pub fn spawn_room(commands: &mut Commands, color: Color, room: &Rectangle, rng: &mut ThreadRng) {
-    // TODO: Add RNG monster spawning (count and position)
-    let (x, y) = room.get_center();
-    spawn_monster(commands, color, Position { x, y });
+    let monster_count = rng.gen_range(0..MAX_MONSTERS_PER_ROOM);
+
+    let mut blocked: HashSet<Position> = HashSet::new();
+    for _ in 0..monster_count {
+        let pos_x = rng.gen_range(room.x1..=room.x2);
+        let pos_y = rng.gen_range(room.y1..=room.y2);
+
+        let pos = Position { x: pos_x, y: pos_y };
+        if blocked.contains(&pos) {
+            continue;
+        }
+
+        spawn_monster(commands, color, pos.clone());
+        blocked.insert(pos);
+    }
 }
 
 pub fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
