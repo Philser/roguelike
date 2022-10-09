@@ -5,7 +5,7 @@ use crate::{
     components::{
         collidable::Collidable,
         item::{HealthPotion, Item, DEFAULT_HEALTH_POTION_HEAL},
-        CombatStats::CombatStats,
+        combatstats::CombatStats, inventory::Backpack,
     },
     map::SCALE,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
@@ -54,7 +54,9 @@ pub fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
             dirty: true,
         })
         .insert(Player {})
-        .insert(Collidable {});
+        .insert(Collidable {})
+        .insert(Backpack::new())
+        ;
 }
 
 pub fn spawn_room(

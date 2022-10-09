@@ -1,5 +1,6 @@
 use bevy::prelude::Component;
 
+//TODO: Introduce item type
 #[derive(Component)]
 pub struct Item {}
 

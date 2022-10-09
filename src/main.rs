@@ -1,5 +1,6 @@
 mod components;
 mod damage_system;
+mod inventory_system;
 mod map;
 mod monster;
 mod player;
@@ -14,6 +15,7 @@ use std::collections::HashMap;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
 use components::{suffer_damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
+use inventory_system::InventorySystemPlugin;
 use map::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
@@ -58,5 +60,6 @@ fn main() {
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
         .add_plugin(DamageSystemPlugin {})
+        .add_plugin(InventorySystemPlugin {})
         .run();
 }

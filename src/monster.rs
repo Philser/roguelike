@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     components::{
-        suffer_damage::DamageTracker, suffer_damage::SufferDamage, CombatStats::CombatStats,
+        suffer_damage::DamageTracker, suffer_damage::SufferDamage, combatstats::CombatStats,
     },
     map::GameMap,
     player::Player,

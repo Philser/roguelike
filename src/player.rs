@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use crate::{
     components::{
-        suffer_damage::DamageTracker, suffer_damage::SufferDamage, user_input::UserInput,
-        CombatStats::CombatStats,
+        combatstats::CombatStats, item::Item, suffer_damage::DamageTracker,
+        suffer_damage::SufferDamage, user_input::UserInput,
     },
     map::GameMap,
     position::Position,
@@ -39,6 +39,8 @@ fn player_input(
     keyboard_input: Res<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
+    items: Query<Item>,
+    mut commands: Commands,
 ) {
     if *app_state.current() != GameState::AwaitingInput {
         return;
@@ -66,6 +68,9 @@ fn player_input(
         x = 0;
         y = -1;
         tried_move = true;
+    }
+    if keyboard_input.just_pressed(KeyCode::G) {
+        commands.
     }
 
     if tried_move {

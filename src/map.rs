@@ -151,7 +151,7 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 
 /// Generate the world map by randomly generating rooms
 fn generate_map(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     material_handles: &MaterialHandles,
     materials: &ResMut<Assets<ColorMaterial>>,
 ) -> GameMap {
