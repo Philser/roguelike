@@ -7,8 +7,8 @@ use bevy::prelude::*;
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
+    components::position::Position,
     player::Player,
-    position::Position,
     spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,

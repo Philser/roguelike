@@ -1,6 +1,12 @@
 use bevy::prelude::*;
 
-use crate::{components::item::Item, GameState};
+use crate::{
+    components::{
+        inventory::{Inventory, PlayerInventory},
+        item::Item,
+    },
+    GameState,
+};
 
 pub struct InventorySystemPlugin {}
 
@@ -16,9 +22,18 @@ pub struct WantsToPickupItem {
     pub item: Item,
 }
 
-fn pickup_handler(pickup_query: Query<&WantsToPickupItem>) {
-    // register key stroke
-    // see if item is available at player position
+fn pickup_handler(
+    pickup_query: Query<&WantsToPickupItem>,
+    mut inventory_query: Query<&mut Inventory, With<PlayerInventory>>,
+) {
+    let mut inventory = inventory_query
+        .get_single_mut()
+        .expect("We don't have exactly one inventory!!11");
+
+    for pickup_attempt in pickup_query.iter() {
+        inventory.add(&pickup_attempt.item.item_type, pickup_attempt.entity);
+        
+    }
     // add item to inventory
     // remove item from map
 }

@@ -2,11 +2,12 @@ use bevy::prelude::*;
 
 use crate::{
     components::{
-        combatstats::CombatStats, item::Item, suffer_damage::DamageTracker,
+        combatstats::CombatStats, inventory::Inventory, item::Item, suffer_damage::DamageTracker,
         suffer_damage::SufferDamage, user_input::UserInput,
     },
+    components::{inventory::PlayerInventory, position::Position},
+    inventory_system::WantsToPickupItem,
     map::GameMap,
-    position::Position,
     user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
@@ -39,7 +40,8 @@ fn player_input(
     keyboard_input: Res<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
-    items: Query<Item>,
+    items_query: Query<(Entity, &Position, &Item)>,
+    player_query: Query<&Position, With<Player>>,
     mut commands: Commands,
 ) {
     if *app_state.current() != GameState::AwaitingInput {
@@ -70,7 +72,18 @@ fn player_input(
         tried_move = true;
     }
     if keyboard_input.just_pressed(KeyCode::G) {
-        commands.
+        let player_pos = player_query
+            .get_single()
+            .expect("Player does not exist or has not position");
+
+        for (entity, item_pos, item) in items_query.iter() {
+            if player_pos == item_pos {
+                commands.spawn().insert(WantsToPickupItem {
+                    entity,
+                    item: item.clone(),
+                });
+            }
+        }
     }
 
     if tried_move {

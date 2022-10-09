@@ -4,7 +4,6 @@ mod inventory_system;
 mod map;
 mod monster;
 mod player;
-mod position;
 mod spawner;
 mod user_interface;
 mod utils;

@@ -3,10 +3,10 @@ use bevy::prelude::{Plugin, Query, Res, ResMut, With};
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting, MapData};
 
 use crate::{
+    components::position::Position,
     map::{GameMap, TileType},
     monster::Monster,
     player::Player,
-    position::Position,
 };
 
 pub struct ViewshedPlugin;
