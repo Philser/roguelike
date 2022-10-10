@@ -5,15 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(Windows) Launch",
-            "type": "cppvsdbg",
+            "name": "(Mac) Launch",
+            "type": "lldb",
             "request": "launch",
-            "program": "${workspaceRoot}/target/debug/roguelike.exe",
+            "program": "${workspaceRoot}/target/debug/roguelike",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
-            "environment": [],
+            "sourceLanguages": [
+                "rust"
+            ],
             "externalConsole": true
-        }
+        },
     ]
 }

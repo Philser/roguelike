@@ -1,3 +1,5 @@
+use std::fmt;
+
 use bevy::prelude::Component;
 
 #[derive(Hash, Clone, PartialEq, Eq)]
@@ -5,7 +7,15 @@ pub enum ItemType {
     HealthPotion,
 }
 
-//TODO: Introduce item type
+impl fmt::Display for ItemType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let string = match self {
+            ItemType::HealthPotion => "Health Potion",
+        };
+        write!(f, "{}", string)
+    }
+}
+
 #[derive(Component, Clone)]
 pub struct Item {
     pub item_type: ItemType,

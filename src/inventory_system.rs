@@ -1,10 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    components::{
-        inventory::{Inventory, PlayerInventory},
-        item::Item,
-    },
+    components::{inventory::Inventory, item::Item, position::Position},
+    player::Player,
+    user_interface::ActionLog,
     GameState,
 };
 
@@ -23,17 +22,27 @@ pub struct WantsToPickupItem {
 }
 
 fn pickup_handler(
-    pickup_query: Query<&WantsToPickupItem>,
-    mut inventory_query: Query<&mut Inventory, With<PlayerInventory>>,
+    mut commands: Commands,
+    pickup_query: Query<(Entity, &WantsToPickupItem)>,
+    mut player_inventory_query: Query<&mut Inventory, With<Player>>,
+    mut action_log: ResMut<ActionLog>,
 ) {
-    let mut inventory = inventory_query
+    let mut player_inv = player_inventory_query
         .get_single_mut()
         .expect("We don't have exactly one inventory!!11");
 
-    for pickup_attempt in pickup_query.iter() {
-        inventory.add(&pickup_attempt.item.item_type, pickup_attempt.entity);
-        
+    for (pickup_attempt_entity, pickup_attempt) in pickup_query.iter() {
+        // remove item from map
+        commands.entity(pickup_attempt.entity).remove::<Sprite>();
+        commands.entity(pickup_attempt.entity).remove::<Transform>();
+        commands.entity(pickup_attempt.entity).remove::<Position>();
+
+        player_inv.add(&pickup_attempt.item.item_type, pickup_attempt.entity);
+
+        action_log
+            .entries
+            .push(format!("Picked up {}", pickup_attempt.item.item_type));
+
+        commands.entity(pickup_attempt_entity).despawn();
     }
-    // add item to inventory
-    // remove item from map
 }

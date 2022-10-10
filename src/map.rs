@@ -108,6 +108,7 @@ impl GameMap {
         self.blocked_tiles.remove(pos);
     }
 
+    // TODO: I think tile_content is obsolete
     pub fn set_tile_content(&mut self, pos: Position, entity: Entity) {
         self.tile_content.insert(pos, entity);
     }

@@ -48,28 +48,24 @@ fn player_input(
         return;
     }
 
-    let mut tried_move = false;
+    let mut received_input = false;
     let mut x: i32 = 0;
     let mut y: i32 = 0;
     if keyboard_input.just_pressed(KeyCode::A) {
         x = -1;
-        y = 0;
-        tried_move = true;
+        received_input = true;
     }
     if keyboard_input.just_pressed(KeyCode::D) {
         x = 1;
-        y = 0;
-        tried_move = true;
+        received_input = true;
     }
     if keyboard_input.just_pressed(KeyCode::W) {
-        x = 0;
         y = 1;
-        tried_move = true;
+        received_input = true;
     }
     if keyboard_input.just_pressed(KeyCode::S) {
-        x = 0;
         y = -1;
-        tried_move = true;
+        received_input = true;
     }
     if keyboard_input.just_pressed(KeyCode::G) {
         let player_pos = player_query
@@ -82,11 +78,12 @@ fn player_input(
                     entity,
                     item: item.clone(),
                 });
+                received_input = true;
             }
         }
     }
 
-    if tried_move {
+    if received_input {
         user_input_res.x = x;
         user_input_res.y = y;
 
@@ -174,10 +171,9 @@ fn player_turn(
                 user_input_res.x = 0;
                 user_input_res.y = 0;
             }
-
-            app_state
-                .set(GameState::MonsterTurn)
-                .expect("failed to set game state in try_move_player");
         }
+        app_state
+            .set(GameState::MonsterTurn)
+            .expect("failed to set game state in try_move_player");
     }
 }

@@ -41,7 +41,8 @@ pub struct UIFont(Handle<Font>);
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
-    let font_handle: Handle<Font> = asset_server.load("fonts\\EduVICWANTBeginner-Regular.ttf");
+    // TODO: Make OS independent
+    let font_handle: Handle<Font> = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
     commands.insert_resource(UIFont(font_handle.clone()));
 
     commands.insert_resource(ActionLog {
