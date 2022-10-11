@@ -187,39 +187,46 @@ pub fn render_inventory(
     player_query: Query<&Inventory, With<Player>>,
     default_font: Res<UIFont>,
 ) {
-    let mut commands_builder = commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(40.0), Val::Percent(40.0)),
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    left: Val::Percent(30.0),
-                    right: Val::Percent(30.0),
-                    top: Val::Percent(30.0),
-                    bottom: Val::Percent(30.0),
-                },
-                ..default()
+    let mut commands_builder = commands.spawn_bundle(NodeBundle {
+        style: Style {
+            size: Size::new(Val::Percent(40.0), Val::Percent(40.0)),
+            position_type: PositionType::Absolute,
+            position: Rect {
+                left: Val::Percent(30.0),
+                right: Val::Percent(30.0),
+                top: Val::Percent(30.0),
+                bottom: Val::Percent(30.0),
             },
-            color: Color::PURPLE.into(),
             ..default()
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(NodeBundle {
-                style: Style {
-                    size: Size::new(Val::Percent(40.0), Val::Percent(40.0)),
-                    position_type: PositionType::Absolute,
-                    position: Rect {
-                        left: Val::Percent(30.0),
-                        right: Val::Percent(30.0),
-                        top: Val::Percent(30.0),
-                        bottom: Val::Percent(30.0),
+        },
+        color: Color::PURPLE.into(),
+        ..default()
+    });
+
+    for i in 0..10 {
+        for j in 0..10 {
+            let x = i as f32;
+            let y = j as f32;
+            commands_builder.with_children(|parent| {
+                parent.spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(5.0), Val::Percent(5.0)),
+                        position_type: PositionType::Absolute,
+                        position: Rect {
+                            left: Val::Percent(x * 10.0),
+                            right: Val::Percent(100.0 - (x * 10.0)),
+                            top: Val::Percent(y * 10.0),
+                            bottom: Val::Percent(100.0 - y * 10.0),
+                        },
+                        ..default()
                     },
+                    color: Color::BLACK.into(),
                     ..default()
-                },
-                color: Color::BLACK.into(),
-                ..default()
+                });
             });
-        });
+        }
+    }
+
     // Spawn windows
     // Fetch items in player inventory
     // Display items
