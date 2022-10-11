@@ -82,6 +82,13 @@ fn player_input(
             }
         }
     }
+    if keyboard_input.just_pressed(KeyCode::I) {
+        app_state
+            .set(GameState::OpenedInventory)
+            .expect("failed to set game state to InventoryMenu");
+
+        return;
+    }
 
     if received_input {
         user_input_res.x = x;

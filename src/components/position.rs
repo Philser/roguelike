@@ -23,7 +23,6 @@ impl Position {
     }
 
     pub fn is_adjacent_to(&self, other_pos: &Position) -> bool {
-        let a = "";
         if self == other_pos {
             return false;
         }

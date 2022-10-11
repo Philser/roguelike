@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
-    components::combatstats::CombatStats,
+    components::{combatstats::CombatStats, inventory::Inventory},
     map::RENDER_MAP_LABEL,
     player::{Player, PLAYER_STARTING_HEALTH},
     GameState,
@@ -23,7 +23,10 @@ impl Plugin for UIPlugin {
                     .with_system(render_ui)
                     .after(RENDER_MAP_LABEL),
             )
-            .add_system_set(SystemSet::on_enter(GameState::AwaitingInput).with_system(render_ui));
+            .add_system_set(SystemSet::on_enter(GameState::AwaitingInput).with_system(render_ui))
+            .add_system_set(
+                SystemSet::on_update(GameState::OpenedInventory).with_system(render_inventory),
+            );
     }
 }
 
@@ -41,7 +44,6 @@ pub struct UIFont(Handle<Font>);
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
-    // TODO: Make OS independent
     let font_handle: Handle<Font> = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
     commands.insert_resource(UIFont(font_handle.clone()));
 
@@ -178,6 +180,49 @@ pub fn render_ui(
         .expect("Found more or less than exactly one Action log text entity while rendering UI");
 
     render_action_log(actionlogtext, action_log, default_font);
+}
+
+pub fn render_inventory(
+    mut commands: Commands,
+    player_query: Query<&Inventory, With<Player>>,
+    default_font: Res<UIFont>,
+) {
+    let mut commands_builder = commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(40.0), Val::Percent(40.0)),
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Percent(30.0),
+                    right: Val::Percent(30.0),
+                    top: Val::Percent(30.0),
+                    bottom: Val::Percent(30.0),
+                },
+                ..default()
+            },
+            color: Color::PURPLE.into(),
+            ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(40.0), Val::Percent(40.0)),
+                    position_type: PositionType::Absolute,
+                    position: Rect {
+                        left: Val::Percent(30.0),
+                        right: Val::Percent(30.0),
+                        top: Val::Percent(30.0),
+                        bottom: Val::Percent(30.0),
+                    },
+                    ..default()
+                },
+                color: Color::BLACK.into(),
+                ..default()
+            });
+        });
+    // Spawn windows
+    // Fetch items in player inventory
+    // Display items
 }
 
 // TODO: Instead of creating new text sections on every rendering

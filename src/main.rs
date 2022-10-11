@@ -35,6 +35,7 @@ enum GameState {
     Render,
     AwaitingInput,
     PlayerTurn,
+    OpenedInventory,
     MonsterTurn,
 }
 

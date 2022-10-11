@@ -28,10 +28,6 @@ impl Inventory {
             entry.push(entity);
         }
     }
-
-    pub fn get(&self, item_type: &ItemType) -> Option<&Vec<Entity>> {
-        self.items.get(item_type)
-    }
 }
 
 #[derive(Component)]
