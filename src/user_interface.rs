@@ -189,7 +189,9 @@ pub fn render_inventory(
 ) {
     let mut commands_builder = commands.spawn_bundle(NodeBundle {
         style: Style {
-            size: Size::new(Val::Percent(40.0), Val::Percent(40.0)),
+            // TODO: Parameterize inventory size
+            // TODO: Use Val::Px
+            size: Size::new(Val::Percent(40.0), Val::Percent(45.0)),
             position_type: PositionType::Absolute,
             position: Rect {
                 left: Val::Percent(30.0),
@@ -203,29 +205,37 @@ pub fn render_inventory(
         ..default()
     });
 
-    for i in 0..10 {
-        for j in 0..10 {
+    // TODO: Make size of slots depend on size of inventory
+    let slot_height_px = 60.0;
+    let slot_width_px = 60.0;
+    let gap_size_px = 15.0;
+    commands_builder.with_children(|parent| {
+        for i in 0..4 {
             let x = i as f32;
-            let y = j as f32;
-            commands_builder.with_children(|parent| {
+            let left_offset = x + x;
+            for j in 0..4 {
+                let y = j as f32;
+                let mut color = Color::BLACK;
+                if j % 2 == 0 {
+                    color = Color::WHITE;
+                }
                 parent.spawn_bundle(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(5.0), Val::Percent(5.0)),
+                        size: Size::new(Val::Px(slot_width_px), Val::Px(slot_height_px)),
                         position_type: PositionType::Absolute,
                         position: Rect {
-                            left: Val::Percent(x * 10.0),
-                            right: Val::Percent(100.0 - (x * 10.0)),
-                            top: Val::Percent(y * 10.0),
-                            bottom: Val::Percent(100.0 - y * 10.0),
+                            left: Val::Px(x * slot_width_px + (x + 1.0) * gap_size_px),
+                            bottom: Val::Px(y * slot_height_px + (y + 1.0) * gap_size_px),
+                            ..Default::default()
                         },
                         ..default()
                     },
-                    color: Color::BLACK.into(),
+                    color: color.into(),
                     ..default()
                 });
-            });
+            }
         }
-    }
+    });
 
     // Spawn windows
     // Fetch items in player inventory
