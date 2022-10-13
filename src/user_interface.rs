@@ -23,9 +23,11 @@ impl Plugin for UIPlugin {
                     .with_system(render_ui)
                     .after(RENDER_MAP_LABEL),
             )
-            .add_system_set(SystemSet::on_enter(GameState::AwaitingInput).with_system(render_ui))
             .add_system_set(
-                SystemSet::on_update(GameState::OpenedInventory).with_system(render_inventory),
+                SystemSet::on_enter(GameState::AwaitingActionInput).with_system(render_ui),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::RenderInventory).with_system(render_inventory),
             );
     }
 }
@@ -39,9 +41,12 @@ pub struct HealthText {}
 #[derive(Component)]
 pub struct ActionLogText {}
 
+#[derive(Component)]
+pub struct InventoryUI {}
+
 pub struct UIFont(Handle<Font>);
 
-pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     let font_handle: Handle<Font> = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
@@ -64,7 +69,7 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     spawn_action_log(&mut commands_builder, font_handle);
 }
 
-pub fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) {
+fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) {
     commands.with_children(|parent| {
         parent
             .spawn_bundle(NodeBundle {
@@ -109,7 +114,7 @@ pub fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) 
     });
 }
 
-pub fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) {
+fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) {
     commands.with_children(|parent| {
         parent
             .spawn_bundle(NodeBundle {
@@ -150,7 +155,7 @@ pub fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) 
     });
 }
 
-pub fn render_ui(
+fn render_ui(
     player_query: Query<&CombatStats, With<Player>>,
     mut healthbar_query: Query<&mut Style, With<HealthBar>>,
     mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
@@ -182,10 +187,11 @@ pub fn render_ui(
     render_action_log(actionlogtext, action_log, default_font);
 }
 
-pub fn render_inventory(
+fn render_inventory(
     mut commands: Commands,
     player_query: Query<&Inventory, With<Player>>,
     default_font: Res<UIFont>,
+    mut app_state: ResMut<State<GameState>>,
 ) {
     let mut commands_builder = commands.spawn_bundle(NodeBundle {
         style: Style {
@@ -204,6 +210,7 @@ pub fn render_inventory(
         color: Color::PURPLE.into(),
         ..default()
     });
+    commands_builder.insert(InventoryUI {});
 
     // TODO: Make size of slots depend on size of inventory
     let slot_height_px = 60.0;
@@ -212,13 +219,9 @@ pub fn render_inventory(
     commands_builder.with_children(|parent| {
         for i in 0..4 {
             let x = i as f32;
-            let left_offset = x + x;
             for j in 0..4 {
                 let y = j as f32;
-                let mut color = Color::BLACK;
-                if j % 2 == 0 {
-                    color = Color::WHITE;
-                }
+
                 parent.spawn_bundle(NodeBundle {
                     style: Style {
                         size: Size::new(Val::Px(slot_width_px), Val::Px(slot_height_px)),
@@ -230,16 +233,16 @@ pub fn render_inventory(
                         },
                         ..default()
                     },
-                    color: color.into(),
+                    color: Color::BLACK.into(),
                     ..default()
                 });
             }
         }
     });
 
-    // Spawn windows
-    // Fetch items in player inventory
-    // Display items
+    app_state
+        .set(GameState::AwaitingInventoryInput)
+        .expect("failed to set game state in map.setup()");
 }
 
 // TODO: Instead of creating new text sections on every rendering

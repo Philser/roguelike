@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     components::{inventory::Inventory, item::Item, position::Position},
     player::Player,
-    user_interface::ActionLog,
+    user_interface::{ActionLog, InventoryUI},
     GameState,
 };
 
@@ -12,6 +12,9 @@ pub struct InventorySystemPlugin {}
 impl Plugin for InventorySystemPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(SystemSet::on_update(GameState::PlayerTurn).with_system(pickup_handler));
+        app.add_system_set(
+            SystemSet::on_update(GameState::AwaitingInventoryInput).with_system(input_handler),
+        );
     }
 }
 
@@ -45,4 +48,24 @@ fn pickup_handler(
 
         commands.entity(pickup_attempt_entity).despawn();
     }
+}
+
+fn input_handler(
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+    mut app_state: ResMut<State<GameState>>,
+    mut commands: Commands,
+    inventory_ui_query: Query<Entity, With<InventoryUI>>,
+) {
+    let inv_entity = inventory_ui_query
+        .get_single()
+        .expect("No or too many inventory UIs found");
+
+    if keyboard_input.just_pressed(KeyCode::I) || keyboard_input.just_pressed(KeyCode::Escape) {
+        commands.entity(inv_entity).despawn_recursive();
+        app_state
+            .set(GameState::AwaitingActionInput)
+            .expect("Couldn't go back to AwaitingActionInput");
+    }
+
+    keyboard_input.clear();
 }

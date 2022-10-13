@@ -371,7 +371,7 @@ fn render_map(
     }
 
     app_state
-        .set(GameState::AwaitingInput)
+        .set(GameState::AwaitingActionInput)
         .expect("failed to set game state in render_map");
 }
 

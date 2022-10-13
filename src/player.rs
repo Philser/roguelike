@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
+    components::position::Position,
     components::{
-        combatstats::CombatStats, inventory::Inventory, item::Item, suffer_damage::DamageTracker,
+        combatstats::CombatStats, item::Item, suffer_damage::DamageTracker,
         suffer_damage::SufferDamage, user_input::UserInput,
     },
-    components::{inventory::PlayerInventory, position::Position},
     inventory_system::WantsToPickupItem,
     map::GameMap,
     user_interface::ActionLog,
@@ -37,14 +37,14 @@ impl Plugin for PlayerPlugin {
 pub struct Player {}
 
 fn player_input(
-    keyboard_input: Res<Input<KeyCode>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
     items_query: Query<(Entity, &Position, &Item)>,
     player_query: Query<&Position, With<Player>>,
     mut commands: Commands,
 ) {
-    if *app_state.current() != GameState::AwaitingInput {
+    if *app_state.current() != GameState::AwaitingActionInput {
         return;
     }
 
@@ -84,13 +84,9 @@ fn player_input(
     }
     if keyboard_input.just_pressed(KeyCode::I) {
         app_state
-            .set(GameState::OpenedInventory)
+            .set(GameState::RenderInventory)
             .expect("failed to set game state to InventoryMenu");
-
-        return;
-    }
-
-    if received_input {
+    } else if received_input {
         user_input_res.x = x;
         user_input_res.y = y;
 
@@ -98,6 +94,8 @@ fn player_input(
             .set(GameState::PlayerTurn)
             .expect("failed to set game state in player_input")
     }
+
+    keyboard_input.clear();
 }
 
 /// Moves the player if no obstacle is in the way or tries to fight the obstacle, if fightable.

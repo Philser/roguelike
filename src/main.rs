@@ -33,10 +33,12 @@ enum GameState {
     LoadingResources,
     MapLoaded,
     Render,
-    AwaitingInput,
+    AwaitingActionInput,
     PlayerTurn,
-    OpenedInventory,
     MonsterTurn,
+
+    RenderInventory,
+    AwaitingInventoryInput,
 }
 
 fn main() {
