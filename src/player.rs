@@ -9,7 +9,7 @@ use crate::{
     inventory_system::WantsToPickupItem,
     map::GameMap,
     user_interface::ActionLog,
-    utils::render::map_pos_to_screen_pos,
+    utils::{input_utils::get_WASD_movement, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
     GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
@@ -49,24 +49,9 @@ fn player_input(
     }
 
     let mut received_input = false;
-    let mut x: i32 = 0;
-    let mut y: i32 = 0;
-    if keyboard_input.just_pressed(KeyCode::A) {
-        x = -1;
-        received_input = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::D) {
-        x = 1;
-        received_input = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::W) {
-        y = 1;
-        received_input = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::S) {
-        y = -1;
-        received_input = true;
-    }
+    let mut user_input = get_WASD_movement(&keyboard_input);
+    received_input = user_input.received_input();
+
     if keyboard_input.just_pressed(KeyCode::G) {
         let player_pos = player_query
             .get_single()
@@ -87,8 +72,8 @@ fn player_input(
             .set(GameState::RenderInventory)
             .expect("failed to set game state to InventoryMenu");
     } else if received_input {
-        user_input_res.x = x;
-        user_input_res.y = y;
+        user_input_res.x = user_input.x;
+        user_input_res.y = user_input.y;
 
         app_state
             .set(GameState::PlayerTurn)

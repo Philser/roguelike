@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
 use crate::{
-    components::{inventory::Inventory, item::Item, position::Position},
+    components::{inventory::Inventory, item::Item, position::Position, user_input::UserInput},
     player::Player,
     user_interface::{ActionLog, InventoryUI},
+    utils::input_utils::get_WASD_movement,
     GameState,
 };
 
@@ -60,10 +61,20 @@ fn input_handler(
         .get_single()
         .expect("No or too many inventory UIs found");
 
+    let mut received_input = false;
+    let input = get_WASD_movement(&keyboard_input);
+    received_input = input.received_input();
+
     if keyboard_input.just_pressed(KeyCode::I) || keyboard_input.just_pressed(KeyCode::Escape) {
         commands.entity(inv_entity).despawn_recursive();
         app_state
             .set(GameState::AwaitingActionInput)
+            .expect("Couldn't go back to AwaitingActionInput");
+    } else if received_input {
+        // TODO: Change active inventory element
+
+        app_state
+            .set(GameState::RenderInventory)
             .expect("Couldn't go back to AwaitingActionInput");
     }
 
