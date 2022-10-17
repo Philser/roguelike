@@ -25,9 +25,6 @@ impl Plugin for UIPlugin {
             )
             .add_system_set(
                 SystemSet::on_enter(GameState::AwaitingActionInput).with_system(render_ui),
-            )
-            .add_system_set(
-                SystemSet::on_update(GameState::RenderInventory).with_system(render_inventory),
             );
     }
 }
@@ -40,9 +37,6 @@ pub struct HealthText {}
 
 #[derive(Component)]
 pub struct ActionLogText {}
-
-#[derive(Component)]
-pub struct InventoryUI {}
 
 pub struct UIFont(Handle<Font>);
 
@@ -185,64 +179,6 @@ fn render_ui(
         .expect("Found more or less than exactly one Action log text entity while rendering UI");
 
     render_action_log(actionlogtext, action_log, default_font);
-}
-
-fn render_inventory(
-    mut commands: Commands,
-    player_query: Query<&Inventory, With<Player>>,
-    default_font: Res<UIFont>,
-    mut app_state: ResMut<State<GameState>>,
-) {
-    let mut commands_builder = commands.spawn_bundle(NodeBundle {
-        style: Style {
-            // TODO: Parameterize inventory size
-            // TODO: Use Val::Px
-            size: Size::new(Val::Percent(40.0), Val::Percent(45.0)),
-            position_type: PositionType::Absolute,
-            position: Rect {
-                left: Val::Percent(30.0),
-                right: Val::Percent(30.0),
-                top: Val::Percent(30.0),
-                bottom: Val::Percent(30.0),
-            },
-            ..default()
-        },
-        color: Color::PURPLE.into(),
-        ..default()
-    });
-    commands_builder.insert(InventoryUI {});
-
-    // TODO: Make size of slots depend on size of inventory
-    let slot_height_px = 60.0;
-    let slot_width_px = 60.0;
-    let gap_size_px = 15.0;
-    commands_builder.with_children(|parent| {
-        for i in 0..4 {
-            let x = i as f32;
-            for j in 0..4 {
-                let y = j as f32;
-
-                parent.spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Px(slot_width_px), Val::Px(slot_height_px)),
-                        position_type: PositionType::Absolute,
-                        position: Rect {
-                            left: Val::Px(x * slot_width_px + (x + 1.0) * gap_size_px),
-                            bottom: Val::Px(y * slot_height_px + (y + 1.0) * gap_size_px),
-                            ..Default::default()
-                        },
-                        ..default()
-                    },
-                    color: Color::BLACK.into(),
-                    ..default()
-                });
-            }
-        }
-    });
-
-    app_state
-        .set(GameState::AwaitingInventoryInput)
-        .expect("failed to set game state in map.setup()");
 }
 
 // TODO: Instead of creating new text sections on every rendering
