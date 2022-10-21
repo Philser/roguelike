@@ -1,6 +1,6 @@
 mod components;
 mod damage_system;
-mod inventory_system;
+mod inventory;
 mod map;
 mod monster;
 mod player;
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
 use components::{suffer_damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
-use inventory_system::InventorySystemPlugin;
+use inventory::plugin::InventorySystemPlugin;
 use map::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
@@ -29,7 +29,7 @@ const SCREEN_HEIGHT: f32 = 720.0;
 const SCREEN_WIDTH: f32 = 1280.0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-enum GameState {
+pub enum GameState {
     LoadingResources,
     MapLoaded,
     Render,

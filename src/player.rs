@@ -6,10 +6,10 @@ use crate::{
         combatstats::CombatStats, item::Item, suffer_damage::DamageTracker,
         suffer_damage::SufferDamage, user_input::UserInput,
     },
-    inventory_system::WantsToPickupItem,
+    inventory::components::WantsToPickupItem,
     map::GameMap,
     user_interface::ActionLog,
-    utils::{input_utils::get_WASD_movement, render::map_pos_to_screen_pos},
+    utils::{input_utils::get_movement_input, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
     GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
@@ -49,8 +49,8 @@ fn player_input(
     }
 
     let mut received_input = false;
-    let mut user_input = get_WASD_movement(&keyboard_input);
-    received_input = user_input.received_input();
+    let mut user_input = get_movement_input(&keyboard_input);
+    received_input = user_input.received_movement_input();
 
     if keyboard_input.just_pressed(KeyCode::G) {
         let player_pos = player_query

@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
-    components::{combatstats::CombatStats, inventory::Inventory},
+    components::combatstats::CombatStats,
     map::RENDER_MAP_LABEL,
     player::{Player, PLAYER_STARTING_HEALTH},
     GameState,

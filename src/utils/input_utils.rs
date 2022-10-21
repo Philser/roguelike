@@ -1,17 +1,17 @@
 use bevy::prelude::{Input, KeyCode, ResMut};
 
-pub struct WASDMovement {
+pub struct MovementInput {
     pub x: i32,
     pub y: i32,
 }
 
-impl WASDMovement {
-    pub fn received_input(&self) -> bool {
+impl MovementInput {
+    pub fn received_movement_input(&self) -> bool {
         return self.x != 0 || self.y != 0;
     }
 }
 
-pub fn get_WASD_movement(keyboard_input: &ResMut<Input<KeyCode>>) -> WASDMovement {
+pub fn get_movement_input(keyboard_input: &Input<KeyCode>) -> MovementInput {
     let mut x: i32 = 0;
     let mut y: i32 = 0;
     if keyboard_input.just_pressed(KeyCode::A) {
@@ -27,5 +27,5 @@ pub fn get_WASD_movement(keyboard_input: &ResMut<Input<KeyCode>>) -> WASDMovemen
         y = -1;
     }
 
-    WASDMovement { x, y }
+    MovementInput { x, y }
 }

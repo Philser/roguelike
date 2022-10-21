@@ -5,10 +5,10 @@ use crate::{
     components::{
         collidable::Collidable,
         combatstats::CombatStats,
-        inventory::Inventory,
         item::{HealthPotion, Item, DEFAULT_HEALTH_POTION_HEAL},
     },
     components::{item::ItemType, position::Position},
+    inventory::components::Inventory,
     map::SCALE,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
