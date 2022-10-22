@@ -10,7 +10,7 @@ use crate::components::{
 /// Component that holds a vector of items per item type. Used by the inventory plugin.
 #[derive(Component)]
 pub struct Inventory {
-    items: HashMap<ItemType, Vec<Entity>>,
+    pub items: HashMap<ItemType, Vec<Entity>>,
 }
 
 impl Inventory {
@@ -47,12 +47,17 @@ pub struct InventoryUIRoot {}
 #[derive(Component)]
 pub struct InventoryUISlot {}
 
+/// Flag component marking the frame for a slot. Used by the inventory cursor to highlight
+/// current selection.
+#[derive(Component)]
+pub struct InventoryUISlotFrame {}
+
 /// Component storing the current position of the cursor in the 2d inventory grid.
 /// Also stores all InventoryUISlot entities in a 2d vector that represents the UI.
 #[derive(Component)]
 pub struct InventoryCursor {
     pub cursor_position: Position,
-    pub ui_item_slots: Vec<Vec<Entity>>,
+    pub ui_cursor_slots: Vec<Vec<Entity>>,
 }
 
 impl InventoryCursor {
@@ -62,11 +67,12 @@ impl InventoryCursor {
         let new_x = self.cursor_position.x + x;
         let new_y = self.cursor_position.y + y;
 
-        if new_y >= 0 && self.ui_item_slots.len() > new_y as usize {
+        if new_y >= 0 && self.ui_cursor_slots.len() > new_y as usize {
             self.cursor_position.y = new_y;
         }
 
-        if new_x >= 0 && self.ui_item_slots[self.cursor_position.y as usize].len() > new_x as usize
+        if new_x >= 0
+            && self.ui_cursor_slots[self.cursor_position.y as usize].len() > new_x as usize
         {
             self.cursor_position.x = new_x;
         }

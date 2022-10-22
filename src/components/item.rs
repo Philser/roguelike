@@ -2,7 +2,7 @@ use std::fmt;
 
 use bevy::prelude::Component;
 
-#[derive(Hash, Clone, PartialEq, Eq)]
+#[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ItemType {
     HealthPotion,
 }
