@@ -10,28 +10,12 @@ use crate::components::{
 /// Component that holds a vector of items per item type. Used by the inventory plugin.
 #[derive(Component)]
 pub struct Inventory {
-    pub items: HashMap<ItemType, Vec<Entity>>,
+    pub items: Vec<(ItemType, Entity)>,
 }
 
 impl Inventory {
     pub fn new() -> Inventory {
-        Inventory {
-            items: HashMap::new(),
-        }
-    }
-
-    /// Add an item's entity to the inventory.
-    pub fn add(&mut self, item_type: &ItemType, entity: Entity) {
-        if !self.items.contains_key(item_type) {
-            self.items.insert(item_type.clone(), vec![entity]);
-        } else {
-            let entry = self
-                .items
-                .get_mut(item_type)
-                .expect("This should never happen");
-
-            entry.push(entity);
-        }
+        Inventory { items: vec![] }
     }
 }
 
@@ -56,25 +40,18 @@ pub struct InventoryUISlotFrame {}
 /// Also stores all InventoryUISlot entities in a 2d vector that represents the UI.
 #[derive(Component)]
 pub struct InventoryCursor {
-    pub cursor_position: Position,
-    pub ui_cursor_slots: Vec<Vec<Entity>>,
+    pub cursor_position: u32,
+    pub ui_cursor_slots: Vec<Entity>,
 }
 
 impl InventoryCursor {
     /// Moves the cursor to the new position, if the new position is within the bounds of the
-    /// component's inventory grid.
-    pub fn move_cursor(&mut self, x: i32, y: i32) {
-        let new_x = self.cursor_position.x + x;
-        let new_y = self.cursor_position.y + y;
+    /// component's inventory bar.
+    pub fn move_cursor(&mut self, y: i32) {
+        let new_y = self.cursor_position as i32 + y;
 
         if new_y >= 0 && self.ui_cursor_slots.len() > new_y as usize {
-            self.cursor_position.y = new_y;
-        }
-
-        if new_x >= 0
-            && self.ui_cursor_slots[self.cursor_position.y as usize].len() > new_x as usize
-        {
-            self.cursor_position.x = new_x;
+            self.cursor_position = new_y as u32;
         }
     }
 }

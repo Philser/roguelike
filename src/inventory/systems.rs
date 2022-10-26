@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::{
-    components::{
-        item::{Item, ItemType},
-        position::Position,
-    },
+    components::{item::ItemType, position::Position},
     player::Player,
     user_interface::ActionLog,
     utils::input_utils::{get_movement_input, MovementInput},
@@ -21,8 +18,7 @@ use super::components::{
 };
 use lazy_static::lazy_static;
 
-const INVENTORY_SLOTS_WIDTH: i32 = 4;
-const INVENTORY_SLOTS_HEIGHT: i32 = 4;
+const INVENTORY_SLOTS_HEIGHT: u32 = 4;
 
 const UNKNOWN_ITEM_COLOR: Color = Color::PINK; // study the greats: Source Engine edition
 
@@ -50,7 +46,9 @@ pub fn pickup_handler(
         commands.entity(pickup_attempt.entity).remove::<Transform>();
         commands.entity(pickup_attempt.entity).remove::<Position>();
 
-        player_inv.add(&pickup_attempt.item.item_type, pickup_attempt.entity);
+        player_inv
+            .items
+            .push((pickup_attempt.item.item_type.clone(), pickup_attempt.entity));
 
         action_log
             .entries
@@ -110,14 +108,11 @@ pub fn inventory_renderer(
         .get_single()
         .expect("while retrieving single player inventory");
 
-    let cursor_start_position = Position {
-        x: 0,
-        y: INVENTORY_SLOTS_HEIGHT - 1,
-    };
-    let mut ui_item_slots: Vec<Vec<Entity>> = vec![];
-    let mut ui_cursor_slots: Vec<Vec<Entity>> = vec![];
+    let cursor_start_position = INVENTORY_SLOTS_HEIGHT - 1;
+    let mut ui_item_slots: Vec<Entity> = vec![];
+    let mut ui_cursor_slots: Vec<Entity> = vec![];
     commands_builder.with_children(|parent| {
-        let ui_slots = build_ui_slots(parent, &cursor_start_position, player_inventory);
+        let ui_slots = build_ui_slots(parent, cursor_start_position, player_inventory);
         ui_item_slots = ui_slots.ui_item_slots;
         ui_cursor_slots = ui_slots.ui_cursor_slots;
     });
@@ -138,13 +133,11 @@ fn move_cursor(
     input: &MovementInput,
     mut inventory_slots_query: Query<(Entity, &mut UiColor), With<InventoryUISlotFrame>>,
 ) {
-    let curr_entity = inventory_cursor.ui_cursor_slots[inventory_cursor.cursor_position.y as usize]
-        [inventory_cursor.cursor_position.x as usize];
+    let curr_entity = inventory_cursor.ui_cursor_slots[inventory_cursor.cursor_position as usize];
 
-    inventory_cursor.move_cursor(input.x, input.y);
+    inventory_cursor.move_cursor(input.y);
 
-    let new_entity = inventory_cursor.ui_cursor_slots[inventory_cursor.cursor_position.y as usize]
-        [inventory_cursor.cursor_position.x as usize];
+    let new_entity = inventory_cursor.ui_cursor_slots[inventory_cursor.cursor_position as usize];
 
     if curr_entity != new_entity {
         for (entity, mut color) in inventory_slots_query.iter_mut() {
@@ -178,7 +171,6 @@ struct UISlot {
 
 fn build_ui_slot(
     parent: &mut ChildBuilder,
-    x: f32,
     y: f32,
     cursor_color: UiColor,
     item_color: UiColor,
@@ -193,7 +185,7 @@ fn build_ui_slot(
         style: Style {
             position_type: PositionType::Absolute,
             position: Rect {
-                left: Val::Px(x * slot_width_px + (x + 1.0) * gap_size_px),
+                left: Val::Px(slot_width_px + 1.0 * gap_size_px),
                 bottom: Val::Px(y * slot_height_px + (y + 1.0) * gap_size_px),
                 ..Default::default()
             },
@@ -233,35 +225,26 @@ fn build_ui_slot(
 }
 
 struct UISlots {
-    pub ui_cursor_slots: Vec<Vec<Entity>>,
-    pub ui_item_slots: Vec<Vec<Entity>>,
+    pub ui_cursor_slots: Vec<Entity>,
+    pub ui_item_slots: Vec<Entity>,
 }
 
 fn build_ui_slots(
     parent: &mut ChildBuilder,
-    cursor_position: &Position,
+    cursor_position: u32,
     inventory: &Inventory,
 ) -> UISlots {
-    let sorted_inventory = inventory.items.iter().sorted().collect_vec();
-    let mut ui_item_slots = vec![vec![]; INVENTORY_SLOTS_HEIGHT as usize];
-    let mut ui_cursor_slots = vec![vec![]; INVENTORY_SLOTS_HEIGHT as usize];
+    let mut ui_item_slots: Vec<Entity> = vec![];
+    let mut ui_cursor_slots: Vec<Entity> = vec![];
+    let mut reverse_y = INVENTORY_SLOTS_HEIGHT;
     for y in 0..INVENTORY_SLOTS_HEIGHT {
-        for x in 0..INVENTORY_SLOTS_WIDTH {
-            let reverse_y = INVENTORY_SLOTS_HEIGHT - y - 1;
-            let current_slot_pos = Position { x, y: reverse_y };
-            let cursor_color = get_cursor_color(&current_slot_pos, cursor_position);
-            let item_color = get_item_color(&current_slot_pos, &sorted_inventory);
+        reverse_y -= 1;
+        let cursor_color = get_cursor_color(y, cursor_position);
+        let item_color = get_item_color(reverse_y, &inventory.items);
 
-            let ui_slot = build_ui_slot(
-                parent,
-                x as f32,
-                reverse_y as f32,
-                cursor_color.into(),
-                item_color.into(),
-            );
-            ui_cursor_slots[reverse_y as usize].push(ui_slot.cursor_slot);
-            ui_item_slots[reverse_y as usize].push(ui_slot.item_slot);
-        }
+        let ui_slot = build_ui_slot(parent, y as f32, cursor_color.into(), item_color.into());
+        ui_cursor_slots.push(ui_slot.cursor_slot);
+        ui_item_slots.push(ui_slot.item_slot);
     }
 
     UISlots {
@@ -270,27 +253,21 @@ fn build_ui_slots(
     }
 }
 
-fn get_cursor_color(current_slot_pos: &Position, cursor_slot_pos: &Position) -> Color {
-    if current_slot_pos.y == cursor_slot_pos.y && current_slot_pos.x == cursor_slot_pos.x {
+fn get_cursor_color(current_slot_pos: u32, cursor_slot_pos: u32) -> Color {
+    if current_slot_pos == cursor_slot_pos {
         return Color::WHITE;
     }
 
     return Color::BLACK;
 }
 
-fn get_item_color(
-    current_slot_pos: &Position,
-    sorted_inventory: &Vec<(&ItemType, &Vec<Entity>)>,
-) -> Color {
-    let curr_pos = (current_slot_pos.x + current_slot_pos.y) as usize;
-    if sorted_inventory.len() > 0 && sorted_inventory.len() > curr_pos {
-        let item_type = sorted_inventory[curr_pos].0;
-        if sorted_inventory[curr_pos].1.len() > 0 {
-            return ITEM_TYPE_COLOR_MAP
-                .get(item_type)
-                .unwrap_or(&UNKNOWN_ITEM_COLOR)
-                .clone();
-        }
+fn get_item_color(current_slot_pos: u32, inventory: &Vec<(ItemType, Entity)>) -> Color {
+    if inventory.len() > 0 && inventory.len() > current_slot_pos as usize {
+        let item_type = &inventory[current_slot_pos as usize].0;
+        return ITEM_TYPE_COLOR_MAP
+            .get(item_type)
+            .unwrap_or(&UNKNOWN_ITEM_COLOR)
+            .clone();
     }
 
     return *EMPTY_SLOT_COLOR;
