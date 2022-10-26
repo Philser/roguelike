@@ -110,25 +110,22 @@ pub fn inventory_renderer(
         .get_single()
         .expect("while retrieving single player inventory");
 
-    let cursor_position = Position {
+    let cursor_start_position = Position {
         x: 0,
         y: INVENTORY_SLOTS_HEIGHT - 1,
     };
     let mut ui_item_slots: Vec<Vec<Entity>> = vec![];
     let mut ui_cursor_slots: Vec<Vec<Entity>> = vec![];
     commands_builder.with_children(|parent| {
-        build_ui_slots(
-            parent,
-            &mut ui_cursor_slots,
-            &mut ui_item_slots,
-            &cursor_position,
-            player_inventory,
-        )
+        let ui_slots = build_ui_slots(parent, &cursor_start_position, player_inventory);
+        ui_item_slots = ui_slots.ui_item_slots;
+        ui_cursor_slots = ui_slots.ui_cursor_slots;
     });
 
     commands.spawn().insert(InventoryCursor {
-        cursor_position,
+        cursor_position: cursor_start_position,
         ui_cursor_slots,
+        // TODO: add item slots
     });
 
     app_state
@@ -235,32 +232,41 @@ fn build_ui_slot(
     };
 }
 
+struct UISlots {
+    pub ui_cursor_slots: Vec<Vec<Entity>>,
+    pub ui_item_slots: Vec<Vec<Entity>>,
+}
+
 fn build_ui_slots(
     parent: &mut ChildBuilder,
-    ui_cursor_slots: &mut Vec<Vec<Entity>>,
-    ui_item_slots: &mut Vec<Vec<Entity>>,
     cursor_position: &Position,
     inventory: &Inventory,
-) {
+) -> UISlots {
     let sorted_inventory = inventory.items.iter().sorted().collect_vec();
+    let mut ui_item_slots = vec![vec![]; INVENTORY_SLOTS_HEIGHT as usize];
+    let mut ui_cursor_slots = vec![vec![]; INVENTORY_SLOTS_HEIGHT as usize];
     for y in 0..INVENTORY_SLOTS_HEIGHT {
-        ui_item_slots.push(vec![]);
-        ui_cursor_slots.push(vec![]);
         for x in 0..INVENTORY_SLOTS_WIDTH {
-            let current_slot_pos = Position { x, y };
+            let reverse_y = INVENTORY_SLOTS_HEIGHT - y - 1;
+            let current_slot_pos = Position { x, y: reverse_y };
             let cursor_color = get_cursor_color(&current_slot_pos, cursor_position);
             let item_color = get_item_color(&current_slot_pos, &sorted_inventory);
 
             let ui_slot = build_ui_slot(
                 parent,
                 x as f32,
-                y as f32,
+                reverse_y as f32,
                 cursor_color.into(),
                 item_color.into(),
             );
-            ui_cursor_slots[y as usize].push(ui_slot.cursor_slot);
-            ui_item_slots[y as usize].push(ui_slot.item_slot);
+            ui_cursor_slots[reverse_y as usize].push(ui_slot.cursor_slot);
+            ui_item_slots[reverse_y as usize].push(ui_slot.item_slot);
         }
+    }
+
+    UISlots {
+        ui_cursor_slots,
+        ui_item_slots,
     }
 }
 
