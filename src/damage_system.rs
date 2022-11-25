@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::{suffer_damage::DamageTracker, combatstats::CombatStats};
+use crate::components::{suffer_damage::DamageTracker, combat_stats::CombatStats};
 use crate::monster::MONSTER_TURN_LABEL;
 use crate::player::{Player, PLAYER_TURN_LABEL};
 use crate::user_interface::ActionLog;

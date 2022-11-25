@@ -4,7 +4,7 @@ use rand::{prelude::ThreadRng, Rng};
 use crate::{
     components::{
         collidable::Collidable,
-        combatstats::CombatStats,
+        combat_stats::CombatStats,
         item::{HealthPotion, Item, DEFAULT_HEALTH_POTION_HEAL},
     },
     components::{item::ItemType, position::Position},
@@ -17,7 +17,7 @@ use crate::{
     ITEM_Z, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
-const MAX_MONSTERS_PER_ROOM: usize = 4;
+const MAX_MONSTERS_PER_ROOM: usize = 2;
 const MAX_ITEMS_PER_ROOM: usize = 1;
 const INVENTORY_SIZE: usize = 4;
 

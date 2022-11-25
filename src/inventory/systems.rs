@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::{
-    components::{item::ItemType, position::Position},
+    components::{
+        combat_stats::CombatStats,
+        item::{HealthPotion, ItemType},
+        position::Position,
+    },
     player::Player,
     user_interface::ActionLog,
     utils::input_utils::get_movement_input,
@@ -66,6 +70,7 @@ pub fn pickup_handler(
 
 /// System processing player input while in the inventory. Responsible for moving the cursor for the selected
 /// item slot, using items and closing the inventory.
+/// // TODO: This gets too large, find a way to split this up
 pub fn user_input_handler(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut app_state: ResMut<State<GameState>>,
@@ -73,7 +78,9 @@ pub fn user_input_handler(
     inventory_ui_root_query: Query<Entity, With<InventoryUIRoot>>,
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
     mut inventory_query: Query<&mut Inventory>,
+    health_pots_query: Query<(&HealthPotion, Entity)>,
     ui_slots_query: Query<Entity, With<UISlots>>,
+    player_stats_query: Query<&mut CombatStats, With<Player>>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -99,7 +106,13 @@ pub fn user_input_handler(
     }
 
     if key_press.just_pressed(KeyCode::E) {
-        use_item(&mut commands, &inventory_cursor, &mut inventory);
+        use_item(
+            &mut commands,
+            &inventory_cursor,
+            &mut inventory,
+            health_pots_query,
+            player_stats_query,
+        );
     }
 
     if key_press.just_pressed(KeyCode::I) || key_press.just_pressed(KeyCode::Escape) {
@@ -328,14 +341,6 @@ fn build_ui_slots(parent: &mut ChildBuilder, inventory: &Inventory) -> UISlots {
     UISlots { slots }
 }
 
-fn get_cursor_color(current_slot_pos: usize, cursor_slot_pos: usize) -> Color {
-    if current_slot_pos == cursor_slot_pos {
-        return Color::WHITE;
-    }
-
-    return Color::BLACK;
-}
-
 fn get_item_color(item_type: &ItemType) -> Color {
     ITEM_TYPE_COLOR_MAP
         .get(item_type)
@@ -367,12 +372,22 @@ fn use_item(
     commands: &mut Commands,
     inventory_cursor: &InventoryCursor,
     inventory: &mut Inventory,
+    health_pots_query: Query<(&HealthPotion, Entity)>,
+    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
 ) {
     let item = &inventory.items[inventory_cursor.cursor_position];
 
     match item.0 {
         ItemType::HealthPotion => {
-            commands.entity(item.1.unwrap()).despawn();
+            // TODO: Re-render health bar
+            let mut player_stats = player_stats_query.get_single_mut().expect("in use_item");
+
+            for (health_pot, entity) in health_pots_query.iter() {
+                if entity == item.1.unwrap() {
+                    player_stats.heal(health_pot.heal_amount);
+                    commands.entity(item.1.unwrap()).despawn();
+                }
+            }
         }
         ItemType::Nothing => {
             return;

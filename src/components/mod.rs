@@ -1,5 +1,5 @@
 pub mod collidable;
-pub mod combatstats;
+pub mod combat_stats;
 pub mod item;
 pub mod position;
 pub mod suffer_damage;
