@@ -6,26 +6,24 @@ use crate::{
     components::{item::ItemType, position::Position},
     player::Player,
     user_interface::ActionLog,
-    utils::input_utils::{get_movement_input, MovementInput},
+    utils::input_utils::get_movement_input,
     GameState,
 };
 
-use itertools::Itertools;
-
 use super::components::{
-    Inventory, InventoryCursor, InventoryUIRoot, InventoryUISlot, InventoryUISlotFrame,
-    WantsToPickupItem,
+    Inventory, InventoryCursor, InventoryError, InventoryUIRoot, InventoryUISlot,
+    InventoryUISlotFrame, WantsToPickupItem,
 };
 use lazy_static::lazy_static;
-
-const INVENTORY_SLOTS_HEIGHT: u32 = 4;
 
 const UNKNOWN_ITEM_COLOR: Color = Color::PINK; // study the greats: Source Engine edition
 
 lazy_static! {
     static ref EMPTY_SLOT_COLOR: Color = Color::rgb_u8(145, 145, 145);
-    static ref ITEM_TYPE_COLOR_MAP: HashMap<ItemType, Color> =
-        HashMap::from([(ItemType::HealthPotion, Color::GREEN)]);
+    static ref ITEM_TYPE_COLOR_MAP: HashMap<ItemType, Color> = HashMap::from([
+        (ItemType::HealthPotion, Color::GREEN),
+        (ItemType::Nothing, Color::rgb_u8(145, 145, 145))
+    ]);
 }
 
 /// System for processing a pickup action by the user. Removes the item in question from the map
@@ -46,9 +44,17 @@ pub fn pickup_handler(
         commands.entity(pickup_attempt.entity).remove::<Transform>();
         commands.entity(pickup_attempt.entity).remove::<Position>();
 
-        player_inv
-            .items
-            .push((pickup_attempt.item.item_type.clone(), pickup_attempt.entity));
+        if let Err(err) = player_inv.add_item((
+            pickup_attempt.item.item_type.clone(),
+            Some(pickup_attempt.entity),
+        )) {
+            if err == InventoryError::InventoryFull {
+                action_log.entries.push("Inventory is full!".to_owned());
+                return;
+            }
+
+            todo!("Unimplemented error case!")
+        }
 
         action_log
             .entries
@@ -64,14 +70,18 @@ pub fn user_input_handler(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut app_state: ResMut<State<GameState>>,
     mut commands: Commands,
-    inventory_ui_query: Query<Entity, With<InventoryUIRoot>>,
-    inventory_slots_query: Query<(Entity, &mut UiColor), With<InventoryUISlotFrame>>,
+    inventory_ui_root_query: Query<Entity, With<InventoryUIRoot>>,
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
+    mut inventory_query: Query<&mut Inventory>,
+    ui_slots_query: Query<Entity, With<UISlots>>,
 ) {
     let key_press = keyboard_input.clone();
+    if key_press.get_just_pressed().len() == 0 {
+        return;
+    }
     keyboard_input.clear();
 
-    let inventory_ui_root = inventory_ui_query
+    let inventory_ui_root = inventory_ui_root_query
         .get_single()
         .expect("No or too many inventory UIs found");
 
@@ -79,73 +89,150 @@ pub fn user_input_handler(
         .get_single_mut()
         .expect("while fetching cursor");
 
+    let mut inventory = inventory_query
+        .get_single_mut()
+        .expect("no or more than one inventory");
+
     let input = get_movement_input(&key_press);
     if input.received_movement_input() {
-        move_cursor(&mut inventory_cursor, &input, inventory_slots_query);
+        inventory_cursor.move_cursor(input.y);
+    }
+
+    if key_press.just_pressed(KeyCode::E) {
+        use_item(&mut commands, &inventory_cursor, &mut inventory);
     }
 
     if key_press.just_pressed(KeyCode::I) || key_press.just_pressed(KeyCode::Escape) {
+        let ui_slots_entity = ui_slots_query
+            .get_single()
+            .expect("while querying in user_input_handler");
         exit_inventory(
             &mut commands,
             inventory_ui_root,
             cursor_entity,
+            ui_slots_entity,
             &mut app_state,
         );
+        return;
     }
+
+    app_state
+        .set(GameState::RenderInventory)
+        .expect("failed to set game state in inventory.user_input_handler");
+}
+
+/// System to create an InventoryCursor object and the UI Entities
+pub fn inventory_setup(
+    mut commands: Commands,
+    mut app_state: ResMut<State<GameState>>,
+    player_inventory_query: Query<&Inventory, With<Player>>,
+) {
+    let player_inventory = player_inventory_query
+        .get_single()
+        .expect("while retrieving single player inventory");
+
+    commands
+        .spawn()
+        .insert(InventoryCursor::new(0, player_inventory.inventory_size));
+
+    let mut commands_builder = commands.spawn_bundle(get_ui_root_bundle());
+    commands_builder.insert(InventoryUIRoot {});
+
+    let mut ui_slots = UISlots { slots: vec![] };
+    commands_builder.with_children(|parent| {
+        ui_slots = build_ui_slots(parent, player_inventory);
+    });
+
+    commands.spawn().insert(ui_slots);
+
+    app_state
+        .set(GameState::RenderInventory)
+        .expect("failed to set game state in inventory_setup");
 }
 
 /// System that creates the UI elements when the user enters the inventory.
 /// Changes app state to AwaitingInventoryInput when done.
 pub fn inventory_renderer(
-    mut commands: Commands,
     mut app_state: ResMut<State<GameState>>,
     player_inventory_query: Query<&Inventory, With<Player>>,
+    inventory_cursor_query: Query<&InventoryCursor>,
+    ui_slots_query: Query<&UISlots>,
+    slot_color_query: Query<(
+        &mut UiColor,
+        Entity,
+        With<InventoryUISlot>,
+        Without<InventoryUISlotFrame>,
+    )>,
+    cursor_color_query: Query<(
+        &mut UiColor,
+        Entity,
+        With<InventoryUISlotFrame>,
+        Without<InventoryUISlot>,
+    )>,
 ) {
-    let mut commands_builder = commands.spawn_bundle(get_ui_root_bundle());
-    commands_builder.insert(InventoryUIRoot {});
-
     let player_inventory = player_inventory_query
         .get_single()
         .expect("while retrieving single player inventory");
 
-    let cursor_start_position = INVENTORY_SLOTS_HEIGHT - 1;
-    let mut ui_item_slots: Vec<Entity> = vec![];
-    let mut ui_cursor_slots: Vec<Entity> = vec![];
-    commands_builder.with_children(|parent| {
-        let ui_slots = build_ui_slots(parent, cursor_start_position, player_inventory);
-        ui_item_slots = ui_slots.ui_item_slots;
-        ui_cursor_slots = ui_slots.ui_cursor_slots;
-    });
+    let cursor = inventory_cursor_query
+        .get_single()
+        .expect("while retrieving cursor in inventory_renderer");
 
-    commands.spawn().insert(InventoryCursor {
-        cursor_position: cursor_start_position,
-        ui_cursor_slots,
-        // TODO: add item slots
-    });
+    let ui_slots = ui_slots_query.get_single().unwrap();
+    render_cursor(ui_slots, cursor, cursor_color_query);
+
+    render_inventory_slots(ui_slots, player_inventory, slot_color_query);
 
     app_state
         .set(GameState::AwaitingInventoryInput)
-        .expect("failed to set game state in map.setup()");
+        .expect("failed to set game state in inventory_renderer");
 }
 
-fn move_cursor(
-    inventory_cursor: &mut InventoryCursor,
-    input: &MovementInput,
-    mut inventory_slots_query: Query<(Entity, &mut UiColor), With<InventoryUISlotFrame>>,
+fn render_cursor(
+    ui_slots: &UISlots,
+    cursor: &InventoryCursor,
+    mut cursor_color_query: Query<(
+        &mut UiColor,
+        Entity,
+        With<InventoryUISlotFrame>,
+        Without<InventoryUISlot>,
+    )>,
 ) {
-    let curr_entity = inventory_cursor.ui_cursor_slots[inventory_cursor.cursor_position as usize];
+    let mut cursor_entity = Entity::from_raw(0);
+    for slot in &ui_slots.slots {
+        if slot.inventory_pos == cursor.cursor_position {
+            cursor_entity = slot.cursor_slot.clone();
+        }
+    }
 
-    inventory_cursor.move_cursor(input.y);
+    for (mut color, entity, _, _) in cursor_color_query.iter_mut() {
+        if entity == cursor_entity {
+            color.0 = Color::WHITE;
+        } else {
+            color.0 = Color::GRAY;
+        }
+    }
+}
 
-    let new_entity = inventory_cursor.ui_cursor_slots[inventory_cursor.cursor_position as usize];
+fn render_inventory_slots(
+    ui_slots: &UISlots,
+    player_inventory: &Inventory,
+    mut slot_color_query: Query<(
+        &mut UiColor,
+        Entity,
+        With<InventoryUISlot>,
+        Without<InventoryUISlotFrame>,
+    )>,
+) {
+    let mut entity_map: HashMap<Entity, usize> = HashMap::new();
+    for slot in &ui_slots.slots {
+        entity_map.insert(slot.item_slot, slot.inventory_pos);
+    }
 
-    if curr_entity != new_entity {
-        for (entity, mut color) in inventory_slots_query.iter_mut() {
-            if entity == curr_entity {
-                color.0 = Color::BLACK
-            } else if entity == new_entity {
-                color.0 = Color::WHITE
-            }
+    for (mut color, entity, _, _) in slot_color_query.iter_mut() {
+        if let Some(pos) = entity_map.get(&entity) {
+            let inventory_content = &player_inventory.items[*pos];
+            color.0 = get_item_color(&inventory_content.0);
         }
     }
 }
@@ -154,27 +241,25 @@ fn exit_inventory(
     commands: &mut Commands,
     inventory_ui_root: Entity,
     cursor: Entity,
+    ui_slots_entity: Entity,
     app_state: &mut ResMut<State<GameState>>,
 ) {
     commands.entity(inventory_ui_root).despawn_recursive();
     commands.entity(cursor).despawn();
+    commands.entity(ui_slots_entity).despawn();
 
     app_state
         .set(GameState::AwaitingActionInput)
         .expect("Couldn't go back to AwaitingActionInput");
 }
 
-struct UISlot {
-    cursor_slot: Entity,
-    item_slot: Entity,
+pub struct UISlot {
+    pub cursor_slot: Entity,
+    pub item_slot: Entity,
+    pub inventory_pos: usize,
 }
 
-fn build_ui_slot(
-    parent: &mut ChildBuilder,
-    y: f32,
-    cursor_color: UiColor,
-    item_color: UiColor,
-) -> UISlot {
+fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UISlot {
     // TODO: Make size of slots depend on size of inventory
     let slot_height_px = 60.0;
     let slot_width_px = 60.0;
@@ -192,7 +277,7 @@ fn build_ui_slot(
             size: Size::new(Val::Px(slot_width_px), Val::Px(slot_height_px)),
             ..default()
         },
-        color: cursor_color,
+        color: Color::WHITE.into(),
         ..default()
     });
     cursor_entity_comm.insert(InventoryUISlotFrame {});
@@ -211,7 +296,7 @@ fn build_ui_slot(
                 size: Size::new(Val::Percent(90.0), Val::Percent(90.0)),
                 ..default()
             },
-            color: item_color,
+            color: Color::GRAY.into(),
             ..default()
         });
         item_slot_comm.insert(InventoryUISlot {});
@@ -221,39 +306,29 @@ fn build_ui_slot(
     return UISlot {
         cursor_slot: cursor_entity_comm.id(),
         item_slot,
+        inventory_pos,
     };
 }
 
-struct UISlots {
-    pub ui_cursor_slots: Vec<Entity>,
-    pub ui_item_slots: Vec<Entity>,
+#[derive(Component)]
+pub struct UISlots {
+    pub slots: Vec<UISlot>,
 }
 
-fn build_ui_slots(
-    parent: &mut ChildBuilder,
-    cursor_position: u32,
-    inventory: &Inventory,
-) -> UISlots {
-    let mut ui_item_slots: Vec<Entity> = vec![];
-    let mut ui_cursor_slots: Vec<Entity> = vec![];
-    let mut reverse_y = INVENTORY_SLOTS_HEIGHT;
-    for y in 0..INVENTORY_SLOTS_HEIGHT {
+fn build_ui_slots(parent: &mut ChildBuilder, inventory: &Inventory) -> UISlots {
+    let mut reverse_y = inventory.inventory_size;
+    let mut slots = vec![];
+    for y in 0..inventory.inventory_size {
         reverse_y -= 1;
-        let cursor_color = get_cursor_color(y, cursor_position);
-        let item_color = get_item_color(reverse_y, &inventory.items);
 
-        let ui_slot = build_ui_slot(parent, y as f32, cursor_color.into(), item_color.into());
-        ui_cursor_slots.push(ui_slot.cursor_slot);
-        ui_item_slots.push(ui_slot.item_slot);
+        let ui_slot = build_ui_slot(parent, y as f32, reverse_y);
+        slots.push(ui_slot);
     }
 
-    UISlots {
-        ui_cursor_slots,
-        ui_item_slots,
-    }
+    UISlots { slots }
 }
 
-fn get_cursor_color(current_slot_pos: u32, cursor_slot_pos: u32) -> Color {
+fn get_cursor_color(current_slot_pos: usize, cursor_slot_pos: usize) -> Color {
     if current_slot_pos == cursor_slot_pos {
         return Color::WHITE;
     }
@@ -261,16 +336,11 @@ fn get_cursor_color(current_slot_pos: u32, cursor_slot_pos: u32) -> Color {
     return Color::BLACK;
 }
 
-fn get_item_color(current_slot_pos: u32, inventory: &Vec<(ItemType, Entity)>) -> Color {
-    if inventory.len() > 0 && inventory.len() > current_slot_pos as usize {
-        let item_type = &inventory[current_slot_pos as usize].0;
-        return ITEM_TYPE_COLOR_MAP
-            .get(item_type)
-            .unwrap_or(&UNKNOWN_ITEM_COLOR)
-            .clone();
-    }
-
-    return *EMPTY_SLOT_COLOR;
+fn get_item_color(item_type: &ItemType) -> Color {
+    ITEM_TYPE_COLOR_MAP
+        .get(item_type)
+        .unwrap_or(&UNKNOWN_ITEM_COLOR)
+        .clone()
 }
 
 fn get_ui_root_bundle() -> NodeBundle {
@@ -291,4 +361,23 @@ fn get_ui_root_bundle() -> NodeBundle {
         color: Color::PURPLE.into(),
         ..default()
     }
+}
+
+fn use_item(
+    commands: &mut Commands,
+    inventory_cursor: &InventoryCursor,
+    inventory: &mut Inventory,
+) {
+    let item = &inventory.items[inventory_cursor.cursor_position];
+
+    match item.0 {
+        ItemType::HealthPotion => {
+            commands.entity(item.1.unwrap()).despawn();
+        }
+        ItemType::Nothing => {
+            return;
+        }
+    }
+
+    inventory.remove_item(inventory_cursor.cursor_position);
 }

@@ -19,6 +19,7 @@ use crate::{
 
 const MAX_MONSTERS_PER_ROOM: usize = 4;
 const MAX_ITEMS_PER_ROOM: usize = 1;
+const INVENTORY_SIZE: usize = 4;
 
 pub fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
     commands
@@ -56,7 +57,7 @@ pub fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
         })
         .insert(Player {})
         .insert(Collidable {})
-        .insert(Inventory::new());
+        .insert(Inventory::new(INVENTORY_SIZE));
 }
 
 pub fn spawn_room(

@@ -4,6 +4,7 @@ use bevy::prelude::Component;
 
 #[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ItemType {
+    Nothing,
     HealthPotion,
 }
 
@@ -11,6 +12,7 @@ impl fmt::Display for ItemType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let string = match self {
             ItemType::HealthPotion => "Health Potion",
+            ItemType::Nothing => ""
         };
         write!(f, "{}", string)
     }

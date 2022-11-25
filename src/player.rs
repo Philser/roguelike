@@ -48,9 +48,8 @@ fn player_input(
         return;
     }
 
-    let mut received_input = false;
-    let mut user_input = get_movement_input(&keyboard_input);
-    received_input = user_input.received_movement_input();
+    let user_input = get_movement_input(&keyboard_input);
+    let mut received_input = user_input.received_movement_input();
 
     if keyboard_input.just_pressed(KeyCode::G) {
         let player_pos = player_query
@@ -69,7 +68,7 @@ fn player_input(
     }
     if keyboard_input.just_pressed(KeyCode::I) {
         app_state
-            .set(GameState::RenderInventory)
+            .set(GameState::SetupInventoryScreen)
             .expect("failed to set game state to InventoryMenu");
     } else if received_input {
         user_input_res.x = user_input.x;
