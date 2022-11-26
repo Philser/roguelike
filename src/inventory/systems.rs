@@ -9,7 +9,7 @@ use crate::{
         position::Position,
     },
     player::Player,
-    user_interface::ActionLog,
+    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText},
     utils::input_utils::get_movement_input,
     GameState,
 };
@@ -81,6 +81,8 @@ pub fn user_input_handler(
     health_pots_query: Query<(&HealthPotion, Entity)>,
     ui_slots_query: Query<Entity, With<UISlots>>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
+    healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
+    healthbar_query: Query<&mut Style, With<HealthBar>>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -112,6 +114,8 @@ pub fn user_input_handler(
             &mut inventory,
             health_pots_query,
             player_stats_query,
+            healthtext_query,
+            healthbar_query,
         );
     }
 
@@ -373,26 +377,60 @@ fn use_item(
     inventory_cursor: &InventoryCursor,
     inventory: &mut Inventory,
     health_pots_query: Query<(&HealthPotion, Entity)>,
-    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
+    player_stats_query: Query<&mut CombatStats, With<Player>>,
+    healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
+    healthbar_query: Query<&mut Style, With<HealthBar>>,
 ) {
     let item = &inventory.items[inventory_cursor.cursor_position];
 
     match item.0 {
-        ItemType::HealthPotion => {
-            // TODO: Re-render health bar
-            let mut player_stats = player_stats_query.get_single_mut().expect("in use_item");
-
-            for (health_pot, entity) in health_pots_query.iter() {
-                if entity == item.1.unwrap() {
-                    player_stats.heal(health_pot.heal_amount);
-                    commands.entity(item.1.unwrap()).despawn();
-                }
-            }
-        }
+        ItemType::HealthPotion => use_health_pot(
+            item.1.unwrap(),
+            commands,
+            inventory_cursor,
+            inventory,
+            health_pots_query,
+            player_stats_query,
+            healthtext_query,
+            healthbar_query,
+        ),
         ItemType::Nothing => {
             return;
         }
     }
+}
+
+fn use_health_pot(
+    item_entity: Entity,
+    commands: &mut Commands,
+    inventory_cursor: &InventoryCursor,
+    inventory: &mut Inventory,
+    health_pots_query: Query<(&HealthPotion, Entity)>,
+    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
+    mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
+    mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+) {
+    let mut player_stats = player_stats_query.get_single_mut().expect("in use_item");
+
+    for (health_pot, entity) in health_pots_query.iter() {
+        if entity == item_entity {
+            player_stats.heal(health_pot.heal_amount);
+            commands.entity(item_entity).despawn();
+        }
+    }
+
+    let mut healthbar = healthbar_query
+        .get_single_mut()
+        .expect("Found more or less than exactly one Healthbar entity while rendering UI");
+
+    healthbar.size.width = Val::Px(player_stats.hp as f32 * 3.0);
+
+    let mut healthtext = healthtext_query
+        .get_single_mut()
+        .expect("Found more or less than exactly one Healthtext entity while rendering UI");
+
+    // We only care for the first section
+    healthtext.sections[0].value = format!("{}/{}", player_stats.hp, player_stats.max_hp);
 
     inventory.remove_item(inventory_cursor.cursor_position);
 }
