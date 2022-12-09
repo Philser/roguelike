@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::{
     components::{
         combat_stats::CombatStats,
+        consumable::Consumable,
         item::{HealthPotion, ItemType},
         position::Position,
     },
@@ -83,6 +84,7 @@ pub fn user_input_handler(
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
+    consumables_query: Query<(&Consumable, Entity)>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -116,6 +118,7 @@ pub fn user_input_handler(
             player_stats_query,
             healthtext_query,
             healthbar_query,
+            consumables_query,
         );
     }
 
@@ -380,15 +383,13 @@ fn use_item(
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
+    consumables_query: Query<(&Consumable, Entity)>,
 ) {
-    let item = &inventory.items[inventory_cursor.cursor_position];
+    let item = &inventory.items[inventory_cursor.cursor_position].clone();
 
     match item.0 {
         ItemType::HealthPotion => use_health_pot(
             item.1.unwrap(),
-            commands,
-            inventory_cursor,
-            inventory,
             health_pots_query,
             player_stats_query,
             healthtext_query,
@@ -398,13 +399,17 @@ fn use_item(
             return;
         }
     }
+    
+    for (_, entity) in consumables_query.iter() {
+        if entity == item.1.unwrap() {
+            inventory.remove_item(inventory_cursor.cursor_position);
+            commands.entity(entity).despawn()
+        }
+    }
 }
 
 fn use_health_pot(
     item_entity: Entity,
-    commands: &mut Commands,
-    inventory_cursor: &InventoryCursor,
-    inventory: &mut Inventory,
     health_pots_query: Query<(&HealthPotion, Entity)>,
     mut player_stats_query: Query<&mut CombatStats, With<Player>>,
     mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
@@ -415,7 +420,6 @@ fn use_health_pot(
     for (health_pot, entity) in health_pots_query.iter() {
         if entity == item_entity {
             player_stats.heal(health_pot.heal_amount);
-            commands.entity(item_entity).despawn();
         }
     }
 
@@ -431,6 +435,4 @@ fn use_health_pot(
 
     // We only care for the first section
     healthtext.sections[0].value = format!("{}/{}", player_stats.hp, player_stats.max_hp);
-
-    inventory.remove_item(inventory_cursor.cursor_position);
 }

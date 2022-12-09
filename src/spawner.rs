@@ -7,7 +7,7 @@ use crate::{
         combat_stats::CombatStats,
         item::{HealthPotion, Item, DEFAULT_HEALTH_POTION_HEAL},
     },
-    components::{item::ItemType, position::Position},
+    components::{consumable::Consumable, item::ItemType, position::Position},
     inventory::components::Inventory,
     map::SCALE,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
@@ -182,5 +182,6 @@ pub fn spawn_item(commands: &mut Commands, color: Color, pos: Position) {
         })
         .insert(HealthPotion {
             heal_amount: DEFAULT_HEALTH_POTION_HEAL,
-        });
+        })
+        .insert(Consumable {});
 }
