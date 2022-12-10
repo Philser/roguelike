@@ -79,12 +79,12 @@ pub fn user_input_handler(
     inventory_ui_root_query: Query<Entity, With<InventoryUIRoot>>,
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
     mut inventory_query: Query<&mut Inventory>,
-    health_pots_query: Query<(&HealthPotion, Entity)>,
+    health_pots_query: Query<&HealthPotion>,
     ui_slots_query: Query<Entity, With<UISlots>>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
-    consumables_query: Query<(&Consumable, Entity)>,
+    consumables_query: Query<&Consumable>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -379,49 +379,49 @@ fn use_item(
     commands: &mut Commands,
     inventory_cursor: &InventoryCursor,
     inventory: &mut Inventory,
-    health_pots_query: Query<(&HealthPotion, Entity)>,
+    health_pots_query: Query<&HealthPotion>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
-    consumables_query: Query<(&Consumable, Entity)>,
+    consumables_query: Query<&Consumable>,
 ) {
-    let item = &inventory.items[inventory_cursor.cursor_position].clone();
+    let item_type = &inventory.items[inventory_cursor.cursor_position].clone();
 
-    match item.0 {
-        ItemType::HealthPotion => use_health_pot(
-            item.1.unwrap(),
-            health_pots_query,
-            player_stats_query,
-            healthtext_query,
-            healthbar_query,
-        ),
+    let item_entity = item_type.1.unwrap();
+
+    match item_type.0 {
+        ItemType::HealthPotion => {
+            if let Ok(health_pot) = health_pots_query.get(item_entity) {
+                use_health_pot(
+                    health_pot,
+                    player_stats_query,
+                    healthtext_query,
+                    healthbar_query,
+                )
+            } else {
+                // TODO: How to error handle this situation?
+            }
+        }
         ItemType::Nothing => {
             return;
         }
     }
-    
-    for (_, entity) in consumables_query.iter() {
-        if entity == item.1.unwrap() {
-            inventory.remove_item(inventory_cursor.cursor_position);
-            commands.entity(entity).despawn()
-        }
+
+    if let Ok(_) = consumables_query.get(item_entity) {
+        inventory.remove_item(inventory_cursor.cursor_position);
+        commands.entity(item_entity).despawn()
     }
 }
 
 fn use_health_pot(
-    item_entity: Entity,
-    health_pots_query: Query<(&HealthPotion, Entity)>,
+    health_pot: &HealthPotion,
     mut player_stats_query: Query<&mut CombatStats, With<Player>>,
     mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     mut healthbar_query: Query<&mut Style, With<HealthBar>>,
 ) {
     let mut player_stats = player_stats_query.get_single_mut().expect("in use_item");
 
-    for (health_pot, entity) in health_pots_query.iter() {
-        if entity == item_entity {
-            player_stats.heal(health_pot.heal_amount);
-        }
-    }
+    player_stats.heal(health_pot.heal_amount);
 
     let mut healthbar = healthbar_query
         .get_single_mut()
