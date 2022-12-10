@@ -6,13 +6,15 @@ use bevy::prelude::Component;
 pub enum ItemType {
     Nothing,
     HealthPotion,
+    MagicMissleScroll,
 }
 
 impl fmt::Display for ItemType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let string = match self {
             ItemType::HealthPotion => "Health Potion",
-            ItemType::Nothing => ""
+            ItemType::MagicMissleScroll => "Magic Missle Scroll",
+            ItemType::Nothing => "",
         };
         write!(f, "{}", string)
     }
@@ -26,6 +28,11 @@ pub struct Item {
 pub const DEFAULT_HEALTH_POTION_HEAL: i32 = 20;
 
 #[derive(Component)]
-pub struct HealthPotion {
+pub struct Heals {
     pub heal_amount: i32,
+}
+
+#[derive(Component, Debug)]
+pub struct Ranged {
+    pub range: i32,
 }

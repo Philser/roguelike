@@ -6,7 +6,7 @@ use crate::{
     components::{
         combat_stats::CombatStats,
         consumable::Consumable,
-        item::{HealthPotion, ItemType},
+        item::{Heals, ItemType},
         position::Position,
     },
     player::Player,
@@ -79,7 +79,7 @@ pub fn user_input_handler(
     inventory_ui_root_query: Query<Entity, With<InventoryUIRoot>>,
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
     mut inventory_query: Query<&mut Inventory>,
-    health_pots_query: Query<&HealthPotion>,
+    health_pots_query: Query<&Heals>,
     ui_slots_query: Query<Entity, With<UISlots>>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
@@ -379,7 +379,7 @@ fn use_item(
     commands: &mut Commands,
     inventory_cursor: &InventoryCursor,
     inventory: &mut Inventory,
-    health_pots_query: Query<&HealthPotion>,
+    health_pots_query: Query<&Heals>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
@@ -402,6 +402,7 @@ fn use_item(
                 // TODO: How to error handle this situation?
             }
         }
+        ItemType::MagicMissleScroll => {}
         ItemType::Nothing => {
             return;
         }
@@ -414,7 +415,7 @@ fn use_item(
 }
 
 fn use_health_pot(
-    health_pot: &HealthPotion,
+    health_pot: &Heals,
     mut player_stats_query: Query<&mut CombatStats, With<Player>>,
     mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     mut healthbar_query: Query<&mut Style, With<HealthBar>>,

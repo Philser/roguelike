@@ -12,7 +12,7 @@ mod viewshed;
 use std::collections::HashMap;
 
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
-use components::{suffer_damage::DamageTracker, user_input::UserInput};
+use components::{damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
 use inventory::plugin::InventorySystemPlugin;
 use map::GameMapPlugin;

@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::{
     components::position::Position,
     components::{
-        combat_stats::CombatStats, item::Item, suffer_damage::DamageTracker,
-        suffer_damage::SufferDamage, user_input::UserInput,
+        combat_stats::CombatStats, item::Item, damage::DamageTracker,
+        damage::SufferDamage, user_input::UserInput,
     },
     inventory::components::WantsToPickupItem,
     map::GameMap,

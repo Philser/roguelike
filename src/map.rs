@@ -220,7 +220,7 @@ fn generate_rooms(
             let color = player_material.clone().color;
 
             let (x, y) = &new_room.get_center();
-            spawn_player(commands, color, Position { x: *x, y: *y });
+            spawn_player(commands, Position { x: *x, y: *y });
         } else {
             // Spawn monster in all other rooms
             let monster_material = materials
@@ -232,13 +232,7 @@ fn generate_rooms(
             let monster_color = monster_material.clone().color;
             let health_potion_color = health_potion_material.clone().color;
 
-            spawner::spawn_room(
-                commands,
-                monster_color,
-                health_potion_color,
-                &new_room,
-                &mut rand,
-            );
+            spawner::spawn_room(commands, &new_room, &mut rand);
         }
 
         apply_room_to_map(game_map, &new_room);
