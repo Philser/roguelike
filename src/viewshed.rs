@@ -3,10 +3,10 @@ use bevy::prelude::{Plugin, Query, Res, ResMut, With};
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting, MapData};
 
 use crate::{
+    components::position::Position,
     map::{GameMap, TileType},
     monster::Monster,
     player::Player,
-    position::Position,
 };
 
 pub struct ViewshedPlugin;
@@ -74,7 +74,7 @@ fn populate_viewshed_player(
 }
 
 fn populate_viewshed_monsters(
-    mut map: ResMut<GameMap>,
+    map: ResMut<GameMap>,
     mut viewshed_monsters: Query<(&Position, &mut Viewshed, With<Monster>)>,
 ) {
     let mut fov = FovRecursiveShadowCasting::new();

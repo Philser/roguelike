@@ -1,14 +1,18 @@
 use bevy::prelude::*;
 
 use crate::{
+    components::position::Position,
     components::{
-        suffer_damage::DamageTracker, suffer_damage::SufferDamage, user_input::UserInput,
-        CombatStats::CombatStats,
+        combat_stats::CombatStats,
+        damage::DamageTracker,
+        damage::SufferDamage,
+        item::{Item, ItemName, UNKNOWN_ITEM_NAME},
+        user_input::UserInput,
     },
+    inventory::components::WantsToPickupItem,
     map::GameMap,
-    position::Position,
     user_interface::ActionLog,
-    utils::render::map_pos_to_screen_pos,
+    utils::{input_utils::get_movement_input, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
     GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
@@ -36,46 +40,58 @@ impl Plugin for PlayerPlugin {
 pub struct Player {}
 
 fn player_input(
-    keyboard_input: Res<Input<KeyCode>>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
+    items_query: Query<(Entity, &Position, &Item, Option<&ItemName>)>,
+    player_query: Query<&Position, With<Player>>,
+    mut commands: Commands,
 ) {
-    if *app_state.current() != GameState::AwaitingInput {
+    if *app_state.current() != GameState::AwaitingActionInput {
         return;
     }
 
-    let mut tried_move = false;
-    let mut x: i32 = 0;
-    let mut y: i32 = 0;
-    if keyboard_input.just_pressed(KeyCode::A) {
-        x = -1;
-        y = 0;
-        tried_move = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::D) {
-        x = 1;
-        y = 0;
-        tried_move = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::W) {
-        x = 0;
-        y = 1;
-        tried_move = true;
-    }
-    if keyboard_input.just_pressed(KeyCode::S) {
-        x = 0;
-        y = -1;
-        tried_move = true;
+    let user_input = get_movement_input(&keyboard_input);
+    let mut received_input = user_input.received_movement_input();
+
+    if keyboard_input.just_pressed(KeyCode::G) {
+        let player_pos = player_query
+            .get_single()
+            .expect("Player does not exist or has no position");
+
+        for (entity, item_pos, item, item_name) in items_query.iter() {
+            if player_pos == item_pos {
+                let name;
+                if item_name.is_none() {
+                    name = UNKNOWN_ITEM_NAME.to_owned();
+                } else {
+                    name = item_name.unwrap().name.clone()
+                }
+
+                commands.spawn().insert(WantsToPickupItem {
+                    entity,
+                    item: item.clone(),
+                    item_name: name,
+                });
+                received_input = true;
+            }
+        }
     }
 
-    if tried_move {
-        user_input_res.x = x;
-        user_input_res.y = y;
+    if keyboard_input.just_pressed(KeyCode::I) {
+        app_state
+            .set(GameState::SetupInventoryScreen)
+            .expect("failed to set game state to InventoryMenu");
+    } else if received_input {
+        user_input_res.x = user_input.x;
+        user_input_res.y = user_input.y;
 
         app_state
             .set(GameState::PlayerTurn)
             .expect("failed to set game state in player_input")
     }
+
+    keyboard_input.clear();
 }
 
 /// Moves the player if no obstacle is in the way or tries to fight the obstacle, if fightable.
@@ -156,10 +172,9 @@ fn player_turn(
                 user_input_res.x = 0;
                 user_input_res.y = 0;
             }
-
-            app_state
-                .set(GameState::MonsterTurn)
-                .expect("failed to set game state in try_move_player");
         }
+        app_state
+            .set(GameState::MonsterTurn)
+            .expect("failed to set game state in try_move_player");
     }
 }

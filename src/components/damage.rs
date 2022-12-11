@@ -1,3 +1,10 @@
+use bevy::prelude::Component;
+
+#[derive(Component, Debug)]
+pub struct InflictsDamage {
+    pub damage: i32,
+}
+
 use std::collections::HashMap;
 
 use bevy::prelude::*;

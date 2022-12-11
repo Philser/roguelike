@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
-    components::CombatStats::CombatStats,
+    components::combat_stats::CombatStats,
     map::RENDER_MAP_LABEL,
     player::{Player, PLAYER_STARTING_HEALTH},
     GameState,
@@ -23,7 +23,9 @@ impl Plugin for UIPlugin {
                     .with_system(render_ui)
                     .after(RENDER_MAP_LABEL),
             )
-            .add_system_set(SystemSet::on_enter(GameState::AwaitingInput).with_system(render_ui));
+            .add_system_set(
+                SystemSet::on_enter(GameState::AwaitingActionInput).with_system(render_ui),
+            );
     }
 }
 
@@ -38,10 +40,10 @@ pub struct ActionLogText {}
 
 pub struct UIFont(Handle<Font>);
 
-pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
-    let font_handle: Handle<Font> = asset_server.load("fonts\\EduVICWANTBeginner-Regular.ttf");
+    let font_handle: Handle<Font> = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
     commands.insert_resource(UIFont(font_handle.clone()));
 
     commands.insert_resource(ActionLog {
@@ -61,7 +63,7 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     spawn_action_log(&mut commands_builder, font_handle);
 }
 
-pub fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) {
+fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) {
     commands.with_children(|parent| {
         parent
             .spawn_bundle(NodeBundle {
@@ -106,7 +108,7 @@ pub fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) 
     });
 }
 
-pub fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) {
+fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) {
     commands.with_children(|parent| {
         parent
             .spawn_bundle(NodeBundle {
@@ -147,7 +149,7 @@ pub fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) 
     });
 }
 
-pub fn render_ui(
+fn render_ui(
     player_query: Query<&CombatStats, With<Player>>,
     mut healthbar_query: Query<&mut Style, With<HealthBar>>,
     mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,

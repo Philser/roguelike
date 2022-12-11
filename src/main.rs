@@ -1,9 +1,10 @@
 mod components;
 mod damage_system;
+mod inventory;
 mod map;
 mod monster;
 mod player;
-mod position;
+mod spawner;
 mod user_interface;
 mod utils;
 mod viewshed;
@@ -11,8 +12,9 @@ mod viewshed;
 use std::collections::HashMap;
 
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
-use components::{suffer_damage::DamageTracker, user_input::UserInput};
+use components::{damage::DamageTracker, user_input::UserInput};
 use damage_system::DamageSystemPlugin;
+use inventory::plugin::InventorySystemPlugin;
 use map::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
@@ -22,17 +24,22 @@ use viewshed::ViewshedPlugin;
 const TILE_SIZE: f32 = 16.0;
 const PLAYER_Z: f32 = 5.0;
 const MONSTER_Z: f32 = 5.0;
+const ITEM_Z: f32 = 3.0;
 const SCREEN_HEIGHT: f32 = 720.0;
 const SCREEN_WIDTH: f32 = 1280.0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-enum GameState {
+pub enum GameState {
     LoadingResources,
     MapLoaded,
     Render,
-    AwaitingInput,
+    AwaitingActionInput,
     PlayerTurn,
     MonsterTurn,
+
+    SetupInventoryScreen,
+    RenderInventory,
+    AwaitingInventoryInput,
 }
 
 fn main() {
@@ -56,5 +63,6 @@ fn main() {
         .add_plugin(ViewshedPlugin {})
         .add_plugin(MonsterPlugin {})
         .add_plugin(DamageSystemPlugin {})
+        .add_plugin(InventorySystemPlugin {})
         .run();
 }

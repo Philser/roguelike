@@ -1,6 +1,6 @@
 use bevy::math::Vec3;
 
-use crate::position::Position;
+use crate::components::position::Position;
 
 // Translate the Game Map position to the screen position
 // The Game Map is a coordinate system starting from the bottom left, whereas the screen has it's base in the center

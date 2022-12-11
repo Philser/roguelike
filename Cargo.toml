@@ -13,9 +13,11 @@ opt-level = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lazy_static = "1.4.0"
 bevy = "0.7.0"
 ron = "0.6.4"
 serde = "1.0.127"
 rand = "0.8.4"
 doryen-fov = "0.1.1"
 pathfinding = "2.2.1"
+itertools = "0.10.5"

@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
 use crate::{
+    components::position::Position,
     components::{
-        suffer_damage::DamageTracker, suffer_damage::SufferDamage, CombatStats::CombatStats,
+        combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage,
     },
     map::GameMap,
     player::Player,
-    position::Position,
     user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,

@@ -7,20 +7,18 @@ use bevy::prelude::*;
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
-    components::collidable::Collidable,
-    components::CombatStats::CombatStats,
-    monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
-    player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
-    position::Position,
+    components::position::Position,
+    player::Player,
+    spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameState, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
-const SCALE: f32 = 1.0;
-const MAP_HEIGHT: i32 = 30;
-const MAP_WIDTH: i32 = 60;
-const MAX_ROOMS: i32 = 10;
+pub const SCALE: f32 = 1.0;
+pub const MAP_HEIGHT: i32 = 30;
+pub const MAP_WIDTH: i32 = 60;
+pub const MAX_ROOMS: i32 = 10;
 
 pub const RENDER_MAP_LABEL: &str = "render_map";
 
@@ -49,8 +47,6 @@ pub struct GameMap {
     pub visited_tiles: HashSet<Position>,
     pub blocked_tiles: HashSet<Position>,
     pub tile_content: HashMap<Position, Entity>,
-    // TODO: Could be worthwile to have a separate list of static wall tiles that block
-    // (separate from dynamic blocking collidables like monsters)
 }
 
 impl GameMap {
@@ -124,6 +120,7 @@ pub struct MaterialHandles {
     pub player: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,
     pub wall_out_of_sight: Handle<ColorMaterial>,
+    pub health_potion: Handle<ColorMaterial>,
     pub monster: Handle<ColorMaterial>,
     pub friendly: Handle<ColorMaterial>,
     pub floor: Handle<ColorMaterial>,
@@ -152,7 +149,7 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 
 /// Generate the world map by randomly generating rooms
 fn generate_map(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     material_handles: &MaterialHandles,
     materials: &ResMut<Assets<ColorMaterial>>,
 ) -> GameMap {
@@ -176,7 +173,7 @@ fn generate_map(
         HashMap::new(),
     );
 
-    generate_rooms(&mut commands, material_handles, materials, &mut game_map);
+    generate_rooms(commands, material_handles, materials, &mut game_map);
 
     game_map
 }
@@ -184,10 +181,10 @@ fn generate_map(
 /// Creates non-overlapping rooms on the map and fills them with the player (first room) or
 /// monsters (all other rooms)
 fn generate_rooms(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     material_handles: &MaterialHandles,
     materials: &ResMut<Assets<ColorMaterial>>,
-    mut game_map: &mut GameMap,
+    game_map: &mut GameMap,
 ) {
     let room_min_height = MAP_HEIGHT / 10;
     let room_min_width = MAP_WIDTH / 10;
@@ -206,37 +203,37 @@ fn generate_rooms(
             &mut rand,
         );
 
-        let mut room_ok = true;
         for room in rooms.iter() {
             if room.intersects(&new_room) {
-                // Drop room
-                room_ok = false;
+                continue;
             }
         }
 
-        if room_ok {
+        if room_no == 0 {
+            // Place player in first room
+            let player_material = materials
+                .get(material_handles.player.clone())
+                .expect("cannot spawn player: missing player material");
+            let color = player_material.clone().color;
+
             let (x, y) = &new_room.get_center();
-            if room_no == 0 {
-                // Place player in first room
-                let player_material = materials
-                    .get(material_handles.player.clone())
-                    .expect("cannot spawn player: missing player material");
-                let color = player_material.clone().color;
+            spawn_player(commands, Position { x: *x, y: *y });
+        } else {
+            // Spawn monster in all other rooms
+            let monster_material = materials
+                .get(material_handles.monster.clone())
+                .expect("cannot spawn monster: missing monster material");
+            let health_potion_material = materials
+                .get(material_handles.health_potion.clone())
+                .expect("cannot spawn monster: missing monster material");
+            let monster_color = monster_material.clone().color;
+            let health_potion_color = health_potion_material.clone().color;
 
-                spawn_player(&mut commands, color, Position { x: *x, y: *y });
-            } else {
-                // Spawn monster in all other rooms
-                let monster_material = materials
-                    .get(material_handles.monster.clone())
-                    .expect("cannot spawn monster: missing monster material");
-                let color = monster_material.clone().color;
-
-                spawn_monster(&mut commands, color, Position { x: *x, y: *y });
-            }
-
-            apply_room_to_map(&mut game_map, &new_room);
-            rooms.push(new_room);
+            spawner::spawn_room(commands, &new_room, &mut rand);
         }
+
+        apply_room_to_map(game_map, &new_room);
+        rooms.push(new_room);
     }
 
     let mut prev_room: Option<&Rectangle> = None;
@@ -255,90 +252,11 @@ fn generate_rooms(
                 tunnel_vertical = generate_vertical_tunnel(prev_y, curr_y, prev_x);
                 tunnel_horizontal = generate_horizontal_tunnel(prev_x, curr_x, curr_y);
             }
-            apply_room_to_map(&mut game_map, &tunnel_horizontal);
-            apply_room_to_map(&mut game_map, &tunnel_vertical);
+            apply_room_to_map(game_map, &tunnel_horizontal);
+            apply_room_to_map(game_map, &tunnel_vertical);
         }
         prev_room = Some(room);
     }
-}
-
-fn spawn_player(commands: &mut Commands, color: Color, pos: Position) {
-    commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
-            sprite: Sprite {
-                color,
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: map_pos_to_screen_pos(
-                    &pos,
-                    PLAYER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
-                ),
-                scale: Vec3::new(SCALE, SCALE, PLAYER_Z),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(pos)
-        .insert(CombatStats {
-            hp: PLAYER_STARTING_HEALTH,
-            max_hp: PLAYER_STARTING_HEALTH,
-            defense: 0,
-            power: 5,
-        })
-        .insert(Viewshed {
-            visible_tiles: vec![],
-            range: PLAYER_FOV,
-            dirty: true,
-        })
-        .insert(Player {})
-        .insert(Collidable {});
-}
-
-fn spawn_monster(commands: &mut Commands, color: Color, pos: Position) {
-    commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
-            sprite: Sprite {
-                color,
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: map_pos_to_screen_pos(
-                    &pos,
-                    MONSTER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
-                ),
-                scale: Vec3::new(SCALE, SCALE, MONSTER_Z),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Position {
-            x: pos.x as i32,
-            y: pos.y as i32,
-        })
-        .insert(CombatStats {
-            hp: MONSTER_STARTING_HEALTH,
-            max_hp: MONSTER_STARTING_HEALTH,
-            defense: 0,
-            power: 5,
-        })
-        .insert(Viewshed {
-            visible_tiles: vec![],
-            range: MONSTER_FOV,
-            dirty: true,
-        })
-        .insert(Collidable {})
-        .insert(Monster {});
 }
 
 fn generate_room(
@@ -390,7 +308,7 @@ fn setup(
     let material_handles = MaterialHandles {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),
         wall: materials.add(Color::rgb_u8(217, 217, 217).into()),
-
+        health_potion: materials.add(Color::rgb_u8(34, 139, 34).into()),
         wall_out_of_sight: materials.add(Color::rgb_u8(140, 140, 140).into()),
         monster: materials.add(Color::rgb_u8(204, 41, 0).into()),
         friendly: materials.add(Color::rgb_u8(51, 255, 178).into()),
@@ -415,7 +333,7 @@ fn render_map(
     material_assets: Res<Assets<ColorMaterial>>,
     mut viewshed_query: Query<&mut Viewshed, With<Player>>,
     tile_query: Query<(&mut Visibility, &mut Sprite, &Position, With<Tile>)>,
-    mut monster_query: Query<(&mut Visibility, &Position, Without<Tile>)>,
+    mut monster_and_items: Query<(&mut Visibility, &Position, Without<Tile>)>,
     mut app_state: ResMut<State<GameState>>,
 ) {
     let mut visibles: HashSet<Position> = HashSet::new();
@@ -432,8 +350,8 @@ fn render_map(
 
         render_tiles(&map, &materials, material_assets, tile_query, &visibles);
 
-        // Render monsters and players
-        for (mut visible_entity, entity_pos, _) in monster_query.iter_mut() {
+        // Render monsters, items and player
+        for (mut visible_entity, entity_pos, _) in monster_and_items.iter_mut() {
             if visibles.contains(entity_pos) {
                 // Render everything that is currently visible for the player in its original color
                 visible_entity.is_visible = true;
@@ -444,7 +362,7 @@ fn render_map(
     }
 
     app_state
-        .set(GameState::AwaitingInput)
+        .set(GameState::AwaitingActionInput)
         .expect("failed to set game state in render_map");
 }
 
