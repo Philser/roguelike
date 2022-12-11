@@ -10,7 +10,7 @@ use crate::{
         position::Position,
     },
     player::Player,
-    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText},
+    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText, TargetModeContext},
     utils::input_utils::get_movement_input,
     GameState,
 };
@@ -97,8 +97,9 @@ pub fn user_input_handler(
         inventory_cursor.move_cursor(input.y);
     }
 
+    let mut new_app_state = GameState::RenderInventory;
     if key_press.just_pressed(KeyCode::E) {
-        use_item(
+        new_app_state = use_item(
             &mut commands,
             &inventory_cursor,
             &mut inventory,
@@ -110,22 +111,25 @@ pub fn user_input_handler(
     }
 
     if key_press.just_pressed(KeyCode::I) || key_press.just_pressed(KeyCode::Escape) {
+        new_app_state = GameState::AwaitingActionInput;
+    }
+
+    if new_app_state == GameState::AwaitingActionInput || new_app_state == GameState::Targeting {
         let ui_slots_entity = ui_slots_query
             .get_single()
             .expect("while querying in user_input_handler");
-        exit_inventory(
+
+        despawn_inventory(
             &mut commands,
             inventory_ui_root,
             cursor_entity,
             ui_slots_entity,
-            &mut app_state,
         );
-        return;
     }
 
     app_state
-        .set(GameState::RenderInventory)
-        .expect("failed to set game state in inventory.user_input_handler");
+        .set(new_app_state)
+        .expect("failed to set game state in inventory.use_item");
 }
 
 /// System to create an InventoryCursor object and the UI Entities
@@ -260,20 +264,15 @@ fn render_inventory_slots(
     }
 }
 
-fn exit_inventory(
+fn despawn_inventory(
     commands: &mut Commands,
     inventory_ui_root: Entity,
     cursor: Entity,
     ui_slots_entity: Entity,
-    app_state: &mut ResMut<State<GameState>>,
 ) {
     commands.entity(inventory_ui_root).despawn_recursive();
     commands.entity(cursor).despawn();
     commands.entity(ui_slots_entity).despawn();
-
-    app_state
-        .set(GameState::AwaitingActionInput)
-        .expect("Couldn't go back to AwaitingActionInput");
 }
 
 pub struct UISlot {
@@ -379,21 +378,31 @@ fn use_item(
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
     item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
-) {
+) -> GameState {
     if let Some(item_entity) = &inventory.items[inventory_cursor.cursor_position] {
         match item_query.get(*item_entity) {
             Ok(query) => {
                 if let Some(heals) = query.0 {
                     use_health_pot(heals, player_stats_query, healthtext_query, healthbar_query);
                 }
+
                 if let Some(_consumable) = query.1 {
                     commands.entity(*item_entity).despawn();
                     inventory.remove_item(inventory_cursor.cursor_position);
+                }
+
+                if let Some(ranged) = query.2 {
+                    commands.spawn().insert(TargetModeContext {
+                        range: ranged.range,
+                    });
+                    return GameState::Targeting;
                 }
             }
             Err(_) => bevy::log::error!("Unimplemented item behaviour"),
         }
     }
+
+    return GameState::RenderInventory;
 }
 
 fn use_health_pot(

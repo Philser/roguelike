@@ -15,7 +15,7 @@ pub struct Heals {
 
 #[derive(Component, Debug)]
 pub struct Ranged {
-    pub range: i32,
+    pub range: u32,
 }
 
 pub const UNKNOWN_ITEM_NAME: &str = "<NOT IMPLEMENTED>";

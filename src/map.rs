@@ -148,11 +148,7 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 }
 
 /// Generate the world map by randomly generating rooms
-fn generate_map(
-    commands: &mut Commands,
-    material_handles: &MaterialHandles,
-    materials: &ResMut<Assets<ColorMaterial>>,
-) -> GameMap {
+fn generate_map(commands: &mut Commands) -> GameMap {
     let mut tiles: HashMap<Position, TileType> = HashMap::new();
     let mut collidables: HashSet<Position> = HashSet::new();
 
@@ -173,19 +169,14 @@ fn generate_map(
         HashMap::new(),
     );
 
-    generate_rooms(commands, material_handles, materials, &mut game_map);
+    generate_rooms(commands, &mut game_map);
 
     game_map
 }
 
 /// Creates non-overlapping rooms on the map and fills them with the player (first room) or
 /// monsters (all other rooms)
-fn generate_rooms(
-    commands: &mut Commands,
-    material_handles: &MaterialHandles,
-    materials: &ResMut<Assets<ColorMaterial>>,
-    game_map: &mut GameMap,
-) {
+fn generate_rooms(commands: &mut Commands, game_map: &mut GameMap) {
     let room_min_height = MAP_HEIGHT / 10;
     let room_min_width = MAP_WIDTH / 10;
     let room_max_height = MAP_HEIGHT / 5;
@@ -211,24 +202,9 @@ fn generate_rooms(
 
         if room_no == 0 {
             // Place player in first room
-            let player_material = materials
-                .get(material_handles.player.clone())
-                .expect("cannot spawn player: missing player material");
-            let color = player_material.clone().color;
-
             let (x, y) = &new_room.get_center();
             spawn_player(commands, Position { x: *x, y: *y });
         } else {
-            // Spawn monster in all other rooms
-            let monster_material = materials
-                .get(material_handles.monster.clone())
-                .expect("cannot spawn monster: missing monster material");
-            let health_potion_material = materials
-                .get(material_handles.health_potion.clone())
-                .expect("cannot spawn monster: missing monster material");
-            let monster_color = monster_material.clone().color;
-            let health_potion_color = health_potion_material.clone().color;
-
             spawner::spawn_room(commands, &new_room, &mut rand);
         }
 
@@ -317,7 +293,7 @@ fn setup(
     };
     commands.insert_resource(material_handles.clone());
 
-    let map = generate_map(&mut commands, &material_handles, &materials);
+    let map = generate_map(&mut commands);
 
     commands.insert_resource(map);
 

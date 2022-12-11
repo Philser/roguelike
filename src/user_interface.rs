@@ -1,9 +1,12 @@
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use std::collections::HashSet;
+
+use bevy::{ecs::system::EntityCommands, prelude::*, render::view};
 
 use crate::{
-    components::combat_stats::CombatStats,
-    map::RENDER_MAP_LABEL,
+    components::{combat_stats::CombatStats, position::Position},
+    map::{Tile, RENDER_MAP_LABEL},
     player::{Player, PLAYER_STARTING_HEALTH},
+    viewshed::Viewshed,
     GameState,
 };
 
@@ -25,6 +28,9 @@ impl Plugin for UIPlugin {
             )
             .add_system_set(
                 SystemSet::on_enter(GameState::AwaitingActionInput).with_system(render_ui),
+            )
+            .add_system_set(
+                SystemSet::on_enter(GameState::Targeting).with_system(render_target_mode),
             );
     }
 }
@@ -37,6 +43,11 @@ pub struct HealthText {}
 
 #[derive(Component)]
 pub struct ActionLogText {}
+
+#[derive(Component)]
+pub struct TargetModeContext {
+    pub range: u32,
+}
 
 pub struct UIFont(Handle<Font>);
 
@@ -208,4 +219,32 @@ fn render_action_log(
         })
     }
     action_log_text.sections = sections;
+}
+
+fn render_target_mode(
+    viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
+    target_mode_query: Query<&TargetModeContext>,
+    mut tiles_query: Query<(&mut Sprite, &Position, With<Tile>)>,
+) {
+    let (player_pos, viewshed, _) = viewshed_player_query
+        .get_single()
+        .expect("Expected a single player viewshed in render_target_mode");
+    let visible_positions = &viewshed.visible_tiles;
+
+    let target_ctx = target_mode_query
+        .get_single()
+        .expect("Expeected a single TargetModeContext component in renter_target_mode");
+
+    let mut pos_in_range: HashSet<&Position> = HashSet::new();
+    for visible_pos in visible_positions {
+        if player_pos.get_airline_distance(visible_pos) <= target_ctx.range as i32 {
+            pos_in_range.insert(visible_pos);
+        }
+    }
+
+    for (mut sprite, pos, _) in tiles_query.iter_mut() {
+        if pos_in_range.contains(pos) {
+            sprite.color = Color::CRIMSON;
+        }
+    }
 }
