@@ -6,7 +6,7 @@ use crate::{
     components::{
         combat_stats::CombatStats,
         consumable::Consumable,
-        item::{Heals, Item, ItemType},
+        item::{Heals, Item, ItemType, Ranged},
         position::Position,
     },
     player::Player,
@@ -70,12 +70,11 @@ pub fn user_input_handler(
     inventory_ui_root_query: Query<Entity, With<InventoryUIRoot>>,
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
     mut inventory_query: Query<&mut Inventory>,
-    health_pots_query: Query<&Heals>,
     ui_slots_query: Query<Entity, With<UISlots>>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
-    consumables_query: Query<&Consumable>,
+    item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -105,11 +104,10 @@ pub fn user_input_handler(
             &mut commands,
             &inventory_cursor,
             &mut inventory,
-            health_pots_query,
             player_stats_query,
             healthtext_query,
             healthbar_query,
-            consumables_query,
+            item_query,
         );
     }
 
@@ -379,34 +377,25 @@ fn use_item(
     commands: &mut Commands,
     inventory_cursor: &InventoryCursor,
     inventory: &mut Inventory,
-    health_pots_query: Query<&Heals>,
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
-    consumables_query: Query<&Consumable>,
+    item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
 ) {
     if let Some(item) = &inventory.items[inventory_cursor.cursor_position] {
         let item_entity = item.1;
 
-        match item.0 {
-            ItemType::HealthPotion => {
-                if let Ok(health_pot) = health_pots_query.get(item_entity) {
-                    use_health_pot(
-                        health_pot,
-                        player_stats_query,
-                        healthtext_query,
-                        healthbar_query,
-                    )
-                } else {
-                    // TODO: How to error handle this situation?
+        match item_query.get(item_entity) {
+            Ok(query) => {
+                if let Some(heals) = query.0 {
+                    use_health_pot(heals, player_stats_query, healthtext_query, healthbar_query);
+                }
+                if let Some(_consumable) = query.1 {
+                    inventory.remove_item(inventory_cursor.cursor_position);
+                    commands.entity(item_entity).despawn()
                 }
             }
-            ItemType::MagicMissileScroll => {}
-        }
-
-        if let Ok(_) = consumables_query.get(item_entity) {
-            inventory.remove_item(inventory_cursor.cursor_position);
-            commands.entity(item_entity).despawn()
+            Err(_) => bevy::log::error!("Unimplemented item behaviour"),
         }
     }
 }

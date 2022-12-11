@@ -35,6 +35,7 @@ pub enum GameState {
     Render,
     AwaitingActionInput,
     PlayerTurn,
+    Targeting,
     MonsterTurn,
 
     SetupInventoryScreen,
