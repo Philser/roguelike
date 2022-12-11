@@ -5,7 +5,7 @@ use crate::components::item::{Item, ItemType};
 /// Component that holds a vector of items per item type. Used by the inventory plugin.
 #[derive(Component)]
 pub struct Inventory {
-    pub items: Vec<(ItemType, Option<Entity>)>,
+    pub items: Vec<Option<(ItemType, Entity)>>,
     pub inventory_size: usize,
 }
 #[derive(PartialEq)]
@@ -17,7 +17,7 @@ impl Inventory {
     pub fn new(inventory_size: usize) -> Inventory {
         let mut items = vec![];
         for _ in 0..inventory_size {
-            items.push((ItemType::Nothing, None))
+            items.push(None)
         }
 
         Inventory {
@@ -26,10 +26,10 @@ impl Inventory {
         }
     }
 
-    pub fn add_item(&mut self, item: (ItemType, Option<Entity>)) -> Result<(), InventoryError> {
+    pub fn add_item(&mut self, item: (ItemType, Entity)) -> Result<(), InventoryError> {
         for i in 0..self.inventory_size {
-            if self.items[i].0 == ItemType::Nothing {
-                self.items[i] = item;
+            if self.items[i].is_none() {
+                self.items[i] = Some(item);
                 return Ok(());
             }
         }
@@ -41,7 +41,7 @@ impl Inventory {
     /// In case of invalid positions or slots that are already empty, nothing happens.
     pub fn remove_item(&mut self, position: usize) {
         if self.items.len() > position {
-            self.items[position] = (ItemType::Nothing, None);
+            self.items[position] = None;
         }
     }
 }
@@ -95,4 +95,5 @@ impl InventoryCursor {
 pub struct WantsToPickupItem {
     pub entity: Entity,
     pub item: Item,
+    pub item_name: String,
 }

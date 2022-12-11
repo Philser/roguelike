@@ -10,7 +10,7 @@ use crate::{
     components::{
         consumable::Consumable,
         damage::InflictsDamage,
-        item::{ItemType, Ranged},
+        item::{ItemName, ItemType, Ranged},
         position::Position,
     },
     inventory::components::Inventory,
@@ -165,6 +165,9 @@ pub fn spawn_health_pot(commands: &mut Commands, pos: Position) {
         .insert(Item {
             item_type: ItemType::HealthPotion,
         })
+        .insert(ItemName {
+            name: "Health Potion".to_owned(),
+        })
         .insert(Heals {
             heal_amount: DEFAULT_HEALTH_POTION_HEAL,
         })
@@ -198,7 +201,10 @@ pub fn spawn_magic_missle_scroll(commands: &mut Commands, pos: Position) {
             y: pos.y as i32,
         })
         .insert(Item {
-            item_type: ItemType::MagicMissleScroll,
+            item_type: ItemType::MagicMissileScroll,
+        })
+        .insert(ItemName {
+            name: "Magic Missile Scroll".to_owned(),
         })
         .insert(InflictsDamage { damage: 8 })
         .insert(Ranged { range: 6 })

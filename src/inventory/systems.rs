@@ -6,7 +6,7 @@ use crate::{
     components::{
         combat_stats::CombatStats,
         consumable::Consumable,
-        item::{Heals, ItemType},
+        item::{Heals, Item, ItemType},
         position::Position,
     },
     player::Player,
@@ -19,17 +19,9 @@ use super::components::{
     Inventory, InventoryCursor, InventoryError, InventoryUIRoot, InventoryUISlot,
     InventoryUISlotFrame, WantsToPickupItem,
 };
-use lazy_static::lazy_static;
 
-const UNKNOWN_ITEM_COLOR: Color = Color::PINK; // study the greats: Source Engine edition
-
-lazy_static! {
-    static ref EMPTY_SLOT_COLOR: Color = Color::rgb_u8(145, 145, 145);
-    static ref ITEM_TYPE_COLOR_MAP: HashMap<ItemType, Color> = HashMap::from([
-        (ItemType::HealthPotion, Color::GREEN),
-        (ItemType::Nothing, Color::rgb_u8(145, 145, 145))
-    ]);
-}
+const UNKNOWN_ITEM_COLOR: Color = Color::YELLOW;
+const EMPTY_SLOT_COLOR: Color = Color::GRAY;
 
 /// System for processing a pickup action by the user. Removes the item in question from the map
 /// and adds it to the player inventory.
@@ -45,14 +37,13 @@ pub fn pickup_handler(
 
     for (pickup_attempt_entity, pickup_attempt) in pickup_query.iter() {
         // remove item from map
-        commands.entity(pickup_attempt.entity).remove::<Sprite>();
+        // commands.entity(pickup_attempt.entity).remove::<Sprite>();
         commands.entity(pickup_attempt.entity).remove::<Transform>();
         commands.entity(pickup_attempt.entity).remove::<Position>();
 
-        if let Err(err) = player_inv.add_item((
-            pickup_attempt.item.item_type.clone(),
-            Some(pickup_attempt.entity),
-        )) {
+        if let Err(err) =
+            player_inv.add_item((pickup_attempt.item.item_type.clone(), pickup_attempt.entity))
+        {
             if err == InventoryError::InventoryFull {
                 action_log.entries.push("Inventory is full!".to_owned());
                 return;
@@ -63,7 +54,7 @@ pub fn pickup_handler(
 
         action_log
             .entries
-            .push(format!("Picked up {}", pickup_attempt.item.item_type));
+            .push(format!("Picked up {}", pickup_attempt.item_name));
 
         commands.entity(pickup_attempt_entity).despawn();
     }
@@ -177,6 +168,7 @@ pub fn inventory_renderer(
     player_inventory_query: Query<&Inventory, With<Player>>,
     inventory_cursor_query: Query<&InventoryCursor>,
     ui_slots_query: Query<&UISlots>,
+    item_sprite_query: Query<&Sprite, With<Item>>,
     slot_color_query: Query<(
         &mut UiColor,
         Entity,
@@ -201,7 +193,12 @@ pub fn inventory_renderer(
     let ui_slots = ui_slots_query.get_single().unwrap();
     render_cursor(ui_slots, cursor, cursor_color_query);
 
-    render_inventory_slots(ui_slots, player_inventory, slot_color_query);
+    render_inventory_slots(
+        ui_slots,
+        player_inventory,
+        slot_color_query,
+        item_sprite_query,
+    );
 
     app_state
         .set(GameState::AwaitingInventoryInput)
@@ -243,6 +240,7 @@ fn render_inventory_slots(
         With<InventoryUISlot>,
         Without<InventoryUISlotFrame>,
     )>,
+    item_sprite_query: Query<&Sprite, With<Item>>,
 ) {
     let mut entity_map: HashMap<Entity, usize> = HashMap::new();
     for slot in &ui_slots.slots {
@@ -251,8 +249,17 @@ fn render_inventory_slots(
 
     for (mut color, entity, _, _) in slot_color_query.iter_mut() {
         if let Some(pos) = entity_map.get(&entity) {
-            let inventory_content = &player_inventory.items[*pos];
-            color.0 = get_item_color(&inventory_content.0);
+            if let Some(item_in_inventory) = &player_inventory.items[*pos] {
+                match item_sprite_query.get(item_in_inventory.1) {
+                    Ok(item_sprite) => color.0 = item_sprite.color,
+                    Err(e) => {
+                        bevy::log::error!("{}", e);
+                        color.0 = UNKNOWN_ITEM_COLOR;
+                    }
+                }
+            } else {
+                color.0 = EMPTY_SLOT_COLOR
+            }
         }
     }
 }
@@ -316,7 +323,7 @@ fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UIS
                 size: Size::new(Val::Percent(90.0), Val::Percent(90.0)),
                 ..default()
             },
-            color: Color::GRAY.into(),
+            color: EMPTY_SLOT_COLOR.into(),
             ..default()
         });
         item_slot_comm.insert(InventoryUISlot {});
@@ -346,13 +353,6 @@ fn build_ui_slots(parent: &mut ChildBuilder, inventory: &Inventory) -> UISlots {
     }
 
     UISlots { slots }
-}
-
-fn get_item_color(item_type: &ItemType) -> Color {
-    ITEM_TYPE_COLOR_MAP
-        .get(item_type)
-        .unwrap_or(&UNKNOWN_ITEM_COLOR)
-        .clone()
 }
 
 fn get_ui_root_bundle() -> NodeBundle {
@@ -385,32 +385,29 @@ fn use_item(
     healthbar_query: Query<&mut Style, With<HealthBar>>,
     consumables_query: Query<&Consumable>,
 ) {
-    let item_type = &inventory.items[inventory_cursor.cursor_position].clone();
+    if let Some(item) = &inventory.items[inventory_cursor.cursor_position] {
+        let item_entity = item.1;
 
-    let item_entity = item_type.1.unwrap();
-
-    match item_type.0 {
-        ItemType::HealthPotion => {
-            if let Ok(health_pot) = health_pots_query.get(item_entity) {
-                use_health_pot(
-                    health_pot,
-                    player_stats_query,
-                    healthtext_query,
-                    healthbar_query,
-                )
-            } else {
-                // TODO: How to error handle this situation?
+        match item.0 {
+            ItemType::HealthPotion => {
+                if let Ok(health_pot) = health_pots_query.get(item_entity) {
+                    use_health_pot(
+                        health_pot,
+                        player_stats_query,
+                        healthtext_query,
+                        healthbar_query,
+                    )
+                } else {
+                    // TODO: How to error handle this situation?
+                }
             }
+            ItemType::MagicMissileScroll => {}
         }
-        ItemType::MagicMissleScroll => {}
-        ItemType::Nothing => {
-            return;
-        }
-    }
 
-    if let Ok(_) = consumables_query.get(item_entity) {
-        inventory.remove_item(inventory_cursor.cursor_position);
-        commands.entity(item_entity).despawn()
+        if let Ok(_) = consumables_query.get(item_entity) {
+            inventory.remove_item(inventory_cursor.cursor_position);
+            commands.entity(item_entity).despawn()
+        }
     }
 }
 

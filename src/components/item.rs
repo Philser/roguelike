@@ -4,17 +4,15 @@ use bevy::prelude::Component;
 
 #[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ItemType {
-    Nothing,
     HealthPotion,
-    MagicMissleScroll,
+    MagicMissileScroll,
 }
 
 impl fmt::Display for ItemType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let string = match self {
             ItemType::HealthPotion => "Health Potion",
-            ItemType::MagicMissleScroll => "Magic Missle Scroll",
-            ItemType::Nothing => "",
+            ItemType::MagicMissileScroll => "Magic Missle Scroll",
         };
         write!(f, "{}", string)
     }
@@ -35,4 +33,10 @@ pub struct Heals {
 #[derive(Component, Debug)]
 pub struct Ranged {
     pub range: i32,
+}
+
+pub const UNKNOWN_ITEM_NAME: &str = "<NOT IMPLEMENTED>";
+#[derive(Component, Debug, Clone)]
+pub struct ItemName {
+    pub name: String,
 }

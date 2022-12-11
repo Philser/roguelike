@@ -47,8 +47,6 @@ pub struct GameMap {
     pub visited_tiles: HashSet<Position>,
     pub blocked_tiles: HashSet<Position>,
     pub tile_content: HashMap<Position, Entity>,
-    // TODO: Could be worthwile to have a separate list of static wall tiles that block
-    // (separate from dynamic blocking collidables like monsters)
 }
 
 impl GameMap {
@@ -108,7 +106,6 @@ impl GameMap {
         self.blocked_tiles.remove(pos);
     }
 
-    // TODO: I think tile_content is obsolete
     pub fn set_tile_content(&mut self, pos: Position, entity: Entity) {
         self.tile_content.insert(pos, entity);
     }

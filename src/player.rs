@@ -3,8 +3,11 @@ use bevy::prelude::*;
 use crate::{
     components::position::Position,
     components::{
-        combat_stats::CombatStats, item::Item, damage::DamageTracker,
-        damage::SufferDamage, user_input::UserInput,
+        combat_stats::CombatStats,
+        damage::DamageTracker,
+        damage::SufferDamage,
+        item::{Item, ItemName, UNKNOWN_ITEM_NAME},
+        user_input::UserInput,
     },
     inventory::components::WantsToPickupItem,
     map::GameMap,
@@ -40,7 +43,7 @@ fn player_input(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
-    items_query: Query<(Entity, &Position, &Item)>,
+    items_query: Query<(Entity, &Position, &Item, Option<&ItemName>)>,
     player_query: Query<&Position, With<Player>>,
     mut commands: Commands,
 ) {
@@ -54,18 +57,27 @@ fn player_input(
     if keyboard_input.just_pressed(KeyCode::G) {
         let player_pos = player_query
             .get_single()
-            .expect("Player does not exist or has not position");
+            .expect("Player does not exist or has no position");
 
-        for (entity, item_pos, item) in items_query.iter() {
+        for (entity, item_pos, item, item_name) in items_query.iter() {
             if player_pos == item_pos {
+                let name;
+                if item_name.is_none() {
+                    name = UNKNOWN_ITEM_NAME.to_owned();
+                } else {
+                    name = item_name.unwrap().name.clone()
+                }
+
                 commands.spawn().insert(WantsToPickupItem {
                     entity,
                     item: item.clone(),
+                    item_name: name,
                 });
                 received_input = true;
             }
         }
     }
+
     if keyboard_input.just_pressed(KeyCode::I) {
         app_state
             .set(GameState::SetupInventoryScreen)
