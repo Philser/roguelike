@@ -2,26 +2,9 @@ use std::fmt;
 
 use bevy::prelude::Component;
 
-#[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ItemType {
-    HealthPotion,
-    MagicMissileScroll,
-}
-
-impl fmt::Display for ItemType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let string = match self {
-            ItemType::HealthPotion => "Health Potion",
-            ItemType::MagicMissileScroll => "Magic Missle Scroll",
-        };
-        write!(f, "{}", string)
-    }
-}
-
+/// Flag component to indicate an item
 #[derive(Component, Clone)]
-pub struct Item {
-    pub item_type: ItemType,
-}
+pub struct Item {}
 
 pub const DEFAULT_HEALTH_POTION_HEAL: i32 = 20;
 

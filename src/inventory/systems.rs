@@ -6,7 +6,7 @@ use crate::{
     components::{
         combat_stats::CombatStats,
         consumable::Consumable,
-        item::{Heals, Item, ItemType, Ranged},
+        item::{Heals, Item, Ranged},
         position::Position,
     },
     player::Player,
@@ -41,9 +41,7 @@ pub fn pickup_handler(
         commands.entity(pickup_attempt.entity).remove::<Transform>();
         commands.entity(pickup_attempt.entity).remove::<Position>();
 
-        if let Err(err) =
-            player_inv.add_item((pickup_attempt.item.item_type.clone(), pickup_attempt.entity))
-        {
+        if let Err(err) = player_inv.add_item(pickup_attempt.entity) {
             if err == InventoryError::InventoryFull {
                 action_log.entries.push("Inventory is full!".to_owned());
                 return;
@@ -248,7 +246,7 @@ fn render_inventory_slots(
     for (mut color, entity, _, _) in slot_color_query.iter_mut() {
         if let Some(pos) = entity_map.get(&entity) {
             if let Some(item_in_inventory) = &player_inventory.items[*pos] {
-                match item_sprite_query.get(item_in_inventory.1) {
+                match item_sprite_query.get(*item_in_inventory) {
                     Ok(item_sprite) => color.0 = item_sprite.color,
                     Err(e) => {
                         bevy::log::error!("{}", e);
@@ -382,17 +380,15 @@ fn use_item(
     healthbar_query: Query<&mut Style, With<HealthBar>>,
     item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
 ) {
-    if let Some(item) = &inventory.items[inventory_cursor.cursor_position] {
-        let item_entity = item.1;
-
-        match item_query.get(item_entity) {
+    if let Some(item_entity) = &inventory.items[inventory_cursor.cursor_position] {
+        match item_query.get(*item_entity) {
             Ok(query) => {
                 if let Some(heals) = query.0 {
                     use_health_pot(heals, player_stats_query, healthtext_query, healthbar_query);
                 }
                 if let Some(_consumable) = query.1 {
+                    commands.entity(*item_entity).despawn();
                     inventory.remove_item(inventory_cursor.cursor_position);
-                    commands.entity(item_entity).despawn()
                 }
             }
             Err(_) => bevy::log::error!("Unimplemented item behaviour"),

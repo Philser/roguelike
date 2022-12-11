@@ -1,11 +1,11 @@
 use bevy::prelude::{Component, Entity};
 
-use crate::components::item::{Item, ItemType};
+use crate::components::item::Item;
 
 /// Component that holds a vector of items per item type. Used by the inventory plugin.
 #[derive(Component)]
 pub struct Inventory {
-    pub items: Vec<Option<(ItemType, Entity)>>,
+    pub items: Vec<Option<Entity>>,
     pub inventory_size: usize,
 }
 #[derive(PartialEq)]
@@ -26,7 +26,7 @@ impl Inventory {
         }
     }
 
-    pub fn add_item(&mut self, item: (ItemType, Entity)) -> Result<(), InventoryError> {
+    pub fn add_item(&mut self, item: Entity) -> Result<(), InventoryError> {
         for i in 0..self.inventory_size {
             if self.items[i].is_none() {
                 self.items[i] = Some(item);
