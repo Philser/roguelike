@@ -4,10 +4,11 @@ use bevy::{ecs::system::EntityCommands, prelude::*, render::view};
 
 use crate::{
     components::{combat_stats::CombatStats, position::Position},
-    map::{Tile, RENDER_MAP_LABEL},
+    map::{Tile, RENDER_MAP_LABEL, SCALE},
     player::{Player, PLAYER_STARTING_HEALTH},
+    utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
-    GameState,
+    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 const ACTION_LOG_MAX_LINES: usize = 7;
@@ -222,6 +223,7 @@ fn render_action_log(
 }
 
 fn render_target_mode(
+    mut commands: Commands,
     viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
     target_mode_query: Query<&TargetModeContext>,
     mut tiles_query: Query<(&mut Sprite, &Position, With<Tile>)>,
@@ -244,7 +246,28 @@ fn render_target_mode(
 
     for (mut sprite, pos, _) in tiles_query.iter_mut() {
         if pos_in_range.contains(pos) {
-            sprite.color = Color::CRIMSON;
+            commands
+                .spawn()
+                .insert_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::rgba(242.0, 36.0, 139.0, 0.05),
+                        custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
+                        ..Default::default()
+                    },
+                    transform: Transform {
+                        translation: map_pos_to_screen_pos(
+                            pos,
+                            1.0,
+                            TILE_SIZE,
+                            SCREEN_WIDTH,
+                            SCREEN_HEIGHT,
+                        ),
+                        scale: Vec3::new(SCALE, SCALE, 1.0),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Position { x: pos.x, y: pos.y });
         }
     }
 }

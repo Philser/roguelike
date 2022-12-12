@@ -1,7 +1,4 @@
 use bevy::prelude::{Component, Entity};
-
-use crate::components::item::Item;
-
 /// Component that holds a vector of items per item type. Used by the inventory plugin.
 #[derive(Component)]
 pub struct Inventory {
@@ -94,6 +91,5 @@ impl InventoryCursor {
 #[derive(Component)]
 pub struct WantsToPickupItem {
     pub entity: Entity,
-    pub item: Item,
     pub item_name: String,
 }

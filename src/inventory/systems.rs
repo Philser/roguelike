@@ -28,6 +28,7 @@ const EMPTY_SLOT_COLOR: Color = Color::GRAY;
 pub fn pickup_handler(
     mut commands: Commands,
     pickup_query: Query<(Entity, &WantsToPickupItem)>,
+    mut visiblity_query: Query<&mut Visibility, With<Item>>,
     mut player_inventory_query: Query<&mut Inventory, With<Player>>,
     mut action_log: ResMut<ActionLog>,
 ) {
@@ -36,8 +37,11 @@ pub fn pickup_handler(
         .expect("We don't have exactly one inventory!!11");
 
     for (pickup_attempt_entity, pickup_attempt) in pickup_query.iter() {
+        match visiblity_query.get_mut(pickup_attempt.entity) {
+            Ok(mut vis) => vis.is_visible = false,
+            Err(e) => bevy::log::error!("{}", e),
+        }
         // remove item from map
-        // commands.entity(pickup_attempt.entity).remove::<Sprite>();
         commands.entity(pickup_attempt.entity).remove::<Transform>();
         commands.entity(pickup_attempt.entity).remove::<Position>();
 

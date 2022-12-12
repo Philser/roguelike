@@ -43,7 +43,7 @@ fn player_input(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
-    items_query: Query<(Entity, &Position, &Item, Option<&ItemName>)>,
+    items_query: Query<(Entity, &Position, Option<&ItemName>), With<Item>>,
     player_query: Query<&Position, With<Player>>,
     mut commands: Commands,
 ) {
@@ -59,7 +59,7 @@ fn player_input(
             .get_single()
             .expect("Player does not exist or has no position");
 
-        for (entity, item_pos, item, item_name) in items_query.iter() {
+        for (entity, item_pos, item_name) in items_query.iter() {
             if player_pos == item_pos {
                 let name;
                 if item_name.is_none() {
@@ -70,10 +70,10 @@ fn player_input(
 
                 commands.spawn().insert(WantsToPickupItem {
                     entity,
-                    item: item.clone(),
                     item_name: name,
                 });
                 received_input = true;
+                break;
             }
         }
     }
