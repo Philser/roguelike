@@ -13,6 +13,9 @@ use crate::{
 
 const ACTION_LOG_MAX_LINES: usize = 7;
 
+const TARGETING_MODE_TILE_COLOR: Color = Color::rgba(242.0, 36.0, 139.0, 0.05);
+
+const TARGETING_MODE_SELECTION_COLOR: Color = Color::BEIGE;
 #[derive(Clone)]
 pub struct ActionLog {
     pub entries: Vec<String>,
@@ -236,6 +239,7 @@ fn render_target_mode(
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
     if targeting_tiles_query.is_empty() {
+        // We just entered targeting mode
         let (player_pos, viewshed, _) = viewshed_player_query
             .get_single()
             .expect("Expected a single player viewshed in render_target_mode");
@@ -246,44 +250,11 @@ fn render_target_mode(
 
         create_targeting_tiles(commands, player_pos, viewshed, target_ctx, tiles_query);
     } else {
+        // We are waiting for the player to pick a target
         let window = windows.get_primary().unwrap();
 
         if let Some(mouse_pos) = window.cursor_position() {
-            let (camera, camera_transform) = q_camera.single();
-            // get the size of the window
-            let window_size = Vec2::new(window.width() as f32, window.height() as f32);
-
-            // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
-            let ndc = (mouse_pos / window_size) * 2.0 - Vec2::ONE;
-
-            // matrix for undoing the projection and camera transform
-            let ndc_to_world =
-                camera_transform.compute_matrix() * camera.projection_matrix.inverse();
-
-            // use it to convert ndc to world-space coordinates
-            let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
-
-            // reduce it to a 2D value
-            let world_pos: Vec2 = world_pos.truncate();
-            // cursor is in the screen
-            bevy::log::info!("Mouse pos: {}", world_pos);
-            for (transform, mut sprite) in targeting_tiles_query.iter_mut() {
-                bevy::log::info!("Tile translation: {}", transform.translation);
-                bevy::log::info!(
-                    "Mouse must be between {} and {}",
-                    transform.translation.x,
-                    transform.translation.x + sprite.custom_size.unwrap().x
-                );
-                if transform.translation.x <= world_pos.x
-                    && transform.translation.x + sprite.custom_size.unwrap().x >= world_pos.x
-                    && transform.translation.y <= world_pos.y
-                    && transform.translation.y + sprite.custom_size.unwrap().y >= world_pos.y
-                {
-                    sprite.color = Color::BEIGE;
-                } else {
-                    sprite.color = Color::rgba(242.0, 36.0, 139.0, 0.05);
-                }
-            }
+            draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query);
         }
     }
 }
@@ -310,14 +281,14 @@ fn create_targeting_tiles(
                 .spawn()
                 .insert_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::rgba(242.0, 36.0, 139.0, 0.05),
+                        color: TARGETING_MODE_TILE_COLOR,
                         custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
                         ..Default::default()
                     },
                     transform: Transform {
                         translation: map_pos_to_screen_pos(
                             pos,
-                            1.0,
+                            10.0,
                             TILE_SIZE,
                             SCREEN_WIDTH,
                             SCREEN_HEIGHT,
@@ -329,6 +300,41 @@ fn create_targeting_tiles(
                 })
                 .insert(Position { x: pos.x, y: pos.y })
                 .insert(TargetingTile {});
+        }
+    }
+}
+
+fn draw_cursor_pos(
+    window: &Window,
+    mouse_pos: Vec2,
+    camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite), With<TargetingTile>>,
+) {
+    let (camera, camera_transform) = camera_query.single();
+    // get the size of the window
+    let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+
+    // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
+    let ndc = (mouse_pos / window_size) * 2.0 - Vec2::ONE;
+
+    // matrix for undoing the projection and camera transform
+    let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
+
+    // use it to convert ndc to world-space coordinates
+    let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
+
+    // reduce it to a 2D value
+    let world_pos: Vec2 = world_pos.truncate();
+    // cursor is in the screen
+    for (transform, mut sprite) in targeting_tiles_query.iter_mut() {
+        if transform.translation.x <= world_pos.x
+            && transform.translation.x + sprite.custom_size.unwrap().x >= world_pos.x
+            && transform.translation.y <= world_pos.y
+            && transform.translation.y + sprite.custom_size.unwrap().y >= world_pos.y
+        {
+            sprite.color = TARGETING_MODE_SELECTION_COLOR;
+        } else {
+            sprite.color = TARGETING_MODE_TILE_COLOR
         }
     }
 }
