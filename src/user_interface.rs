@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use bevy::{ecs::system::EntityCommands, prelude::*, render::view};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
     components::{combat_stats::CombatStats, position::Position},
-    map::{Tile, RENDER_MAP_LABEL, SCALE},
+    map::{MainCamera, Tile, RENDER_MAP_LABEL, SCALE},
     player::{Player, PLAYER_STARTING_HEALTH},
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
@@ -31,7 +31,7 @@ impl Plugin for UIPlugin {
                 SystemSet::on_enter(GameState::AwaitingActionInput).with_system(render_ui),
             )
             .add_system_set(
-                SystemSet::on_enter(GameState::Targeting).with_system(render_target_mode),
+                SystemSet::on_update(GameState::Targeting).with_system(render_target_mode),
             );
     }
 }
@@ -45,10 +45,14 @@ pub struct HealthText {}
 #[derive(Component)]
 pub struct ActionLogText {}
 
+///
 #[derive(Component)]
-pub struct TargetModeContext {
+pub struct TargetingModeContext {
     pub range: u32,
 }
+
+#[derive(Component)]
+pub struct TargetingTile {}
 
 pub struct UIFont(Handle<Font>);
 
@@ -223,19 +227,75 @@ fn render_action_log(
 }
 
 fn render_target_mode(
-    mut commands: Commands,
+    commands: Commands,
     viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
-    target_mode_query: Query<&TargetModeContext>,
-    mut tiles_query: Query<(&mut Sprite, &Position, With<Tile>)>,
+    target_mode_query: Query<&TargetingModeContext>,
+    tiles_query: Query<(&Position, With<Tile>)>,
+    mut targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite), With<TargetingTile>>,
+    windows: Res<Windows>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
-    let (player_pos, viewshed, _) = viewshed_player_query
-        .get_single()
-        .expect("Expected a single player viewshed in render_target_mode");
-    let visible_positions = &viewshed.visible_tiles;
+    if targeting_tiles_query.is_empty() {
+        let (player_pos, viewshed, _) = viewshed_player_query
+            .get_single()
+            .expect("Expected a single player viewshed in render_target_mode");
 
-    let target_ctx = target_mode_query
-        .get_single()
-        .expect("Expeected a single TargetModeContext component in renter_target_mode");
+        let target_ctx = target_mode_query
+            .get_single()
+            .expect("Expected a single TargetModeContext component in render_target_mode");
+
+        create_targeting_tiles(commands, player_pos, viewshed, target_ctx, tiles_query);
+    } else {
+        let window = windows.get_primary().unwrap();
+
+        if let Some(mouse_pos) = window.cursor_position() {
+            let (camera, camera_transform) = q_camera.single();
+            // get the size of the window
+            let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+
+            // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
+            let ndc = (mouse_pos / window_size) * 2.0 - Vec2::ONE;
+
+            // matrix for undoing the projection and camera transform
+            let ndc_to_world =
+                camera_transform.compute_matrix() * camera.projection_matrix.inverse();
+
+            // use it to convert ndc to world-space coordinates
+            let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
+
+            // reduce it to a 2D value
+            let world_pos: Vec2 = world_pos.truncate();
+            // cursor is in the screen
+            bevy::log::info!("Mouse pos: {}", world_pos);
+            for (transform, mut sprite) in targeting_tiles_query.iter_mut() {
+                bevy::log::info!("Tile translation: {}", transform.translation);
+                bevy::log::info!(
+                    "Mouse must be between {} and {}",
+                    transform.translation.x,
+                    transform.translation.x + sprite.custom_size.unwrap().x
+                );
+                if transform.translation.x <= world_pos.x
+                    && transform.translation.x + sprite.custom_size.unwrap().x >= world_pos.x
+                    && transform.translation.y <= world_pos.y
+                    && transform.translation.y + sprite.custom_size.unwrap().y >= world_pos.y
+                {
+                    sprite.color = Color::BEIGE;
+                } else {
+                    sprite.color = Color::rgba(242.0, 36.0, 139.0, 0.05);
+                }
+            }
+        }
+    }
+}
+
+fn create_targeting_tiles(
+    mut commands: Commands,
+    player_pos: &Position,
+    player_viewshed: &Viewshed,
+    target_ctx: &TargetingModeContext,
+    tiles_query: Query<(&Position, With<Tile>)>,
+) {
+    let visible_positions = &player_viewshed.visible_tiles;
 
     let mut pos_in_range: HashSet<&Position> = HashSet::new();
     for visible_pos in visible_positions {
@@ -244,7 +304,7 @@ fn render_target_mode(
         }
     }
 
-    for (mut sprite, pos, _) in tiles_query.iter_mut() {
+    for (pos, _) in tiles_query.iter() {
         if pos_in_range.contains(pos) {
             commands
                 .spawn()
@@ -267,7 +327,8 @@ fn render_target_mode(
                     },
                     ..Default::default()
                 })
-                .insert(Position { x: pos.x, y: pos.y });
+                .insert(Position { x: pos.x, y: pos.y })
+                .insert(TargetingTile {});
         }
     }
 }

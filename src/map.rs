@@ -272,6 +272,9 @@ fn generate_vertical_tunnel(y1: i32, y2: i32, x: i32) -> Rectangle {
     }
 }
 
+#[derive(Component)]
+pub struct MainCamera {}
+
 /// Generate the map, load materials and spawn the camera.
 /// Sets the game to `GameState::MapLoaded` when done
 fn setup(
@@ -279,7 +282,9 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut app_state: ResMut<State<GameState>>,
 ) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(MainCamera {});
 
     let material_handles = MaterialHandles {
         player: materials.add(Color::rgb_u8(0, 163, 204).into()),

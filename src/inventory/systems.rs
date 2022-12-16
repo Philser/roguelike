@@ -10,7 +10,7 @@ use crate::{
         position::Position,
     },
     player::Player,
-    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText, TargetModeContext},
+    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText, TargetingModeContext},
     utils::input_utils::get_movement_input,
     GameState,
 };
@@ -396,7 +396,7 @@ fn use_item(
                 }
 
                 if let Some(ranged) = query.2 {
-                    commands.spawn().insert(TargetModeContext {
+                    commands.spawn().insert(TargetingModeContext {
                         range: ranged.range,
                     });
                     return GameState::Targeting;
