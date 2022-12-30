@@ -12,7 +12,7 @@ use crate::{
     spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameConfig, GameState,
+    GameConfig, GameState, MapProperties,
 };
 
 pub struct GameMapPlugin {}
@@ -141,63 +141,51 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 }
 
 /// Generate the world map by randomly generating rooms
-fn generate_map(commands: &mut Commands, game_config: &GameConfig) -> GameMap {
+fn generate_map(commands: &mut Commands, map_properties: &MapProperties) -> GameMap {
     let mut tiles: HashMap<Position, TileType> = HashMap::new();
     let mut collidables: HashSet<Position> = HashSet::new();
 
     // Init world to be all walls
-    for x in 0..game_config.map_width {
-        for y in 0..game_config.map_height {
+    for x in 0..map_properties.map_width {
+        for y in 0..map_properties.map_height {
             tiles.insert(Position { x, y }, TileType::Wall);
             collidables.insert(Position { x, y });
         }
     }
 
     let mut game_map = GameMap::new(
-        game_config.map_height,
-        game_config.map_width,
+        map_properties.map_height,
+        map_properties.map_width,
         tiles,
         HashSet::new(),
         collidables,
         HashMap::new(),
     );
 
-    generate_rooms(
-        commands,
-        &mut game_map,
-        game_config.map_width,
-        game_config.map_height,
-        game_config.max_rooms,
-    );
+    generate_rooms(commands, &mut game_map, &map_properties);
 
     game_map
 }
 
 /// Creates non-overlapping rooms on the map and fills them with the player (first room) or
 /// monsters (all other rooms)
-fn generate_rooms(
-    commands: &mut Commands,
-    game_map: &mut GameMap,
-    map_width: i32,
-    map_height: i32,
-    max_rooms: u32,
-) {
-    let room_min_height = map_height / 10;
-    let room_min_width = map_width / 10;
-    let room_max_height = map_height / 5;
-    let room_max_width = map_width / 5;
+fn generate_rooms(commands: &mut Commands, game_map: &mut GameMap, map_properties: &MapProperties) {
+    let room_min_height = map_properties.map_height / 10;
+    let room_min_width = map_properties.map_width / 10;
+    let room_max_height = map_properties.map_height / 5;
+    let room_max_width = map_properties.map_width / 5;
     let mut rooms: Vec<Rectangle> = vec![];
 
     let mut rand = rand::thread_rng();
 
-    for room_no in 0..max_rooms {
+    for room_no in 0..map_properties.max_rooms {
         let new_room = generate_room(
             room_min_height,
             room_max_height,
             room_min_width,
             room_max_width,
-            map_width,
-            map_height,
+            map_properties.map_width,
+            map_properties.map_height,
             &mut rand,
         );
 
@@ -210,7 +198,7 @@ fn generate_rooms(
         if room_no == 0 {
             // Place player in first room
             let (x, y) = &new_room.get_center();
-            spawn_player(commands, Position { x: *x, y: *y });
+            spawn_player(commands, Position { x: *x, y: *y }, game);
         } else {
             spawner::spawn_room(commands, &new_room, &mut rand);
         }

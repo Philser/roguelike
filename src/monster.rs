@@ -2,15 +2,13 @@ use bevy::prelude::*;
 
 use crate::{
     components::position::Position,
-    components::{
-        combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage,
-    },
+    components::{combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage},
     map::GameMap,
     player::Player,
     user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
-    GameState, MONSTER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameConfig, GameState,
 };
 
 pub const MONSTER_FOV: i32 = 8;
@@ -50,6 +48,7 @@ fn monster_ai(
         Query<(Entity, &Position), With<Player>>,
     )>,
     mut action_log: ResMut<ActionLog>,
+    game_config: Res<GameConfig>,
 ) {
     let q = monsters_and_player_set.p1();
     let player_tuple = q
@@ -84,6 +83,10 @@ fn monster_ai(
                 &mut damage_tracker,
                 player_entity,
                 action_log_ref,
+                game_config.monster_z,
+                game_config.tile_size,
+                game_config.screen_width,
+                game_config.screen_height,
             );
         }
     }
@@ -104,6 +107,10 @@ fn move_to_player(
     damage_tracker: &mut ResMut<DamageTracker>,
     player_entity: Entity,
     action_log: &mut ActionLog,
+    monster_z: f32,
+    tile_size: f32,
+    screen_width: f32,
+    screen_height: f32,
 ) {
     let position = monster_pos.clone();
     let path_result_opt = pathfinding::directed::astar::astar(
@@ -128,10 +135,10 @@ fn move_to_player(
 
             monster_tf.translation = map_pos_to_screen_pos(
                 monster_pos,
-                MONSTER_Z,
-                TILE_SIZE,
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
+                monster_z,
+                tile_size,
+                screen_width,
+                screen_height,
             );
 
             viewshed.dirty = true; // Monster moved, re-compute viewshed

@@ -14,35 +14,41 @@ use crate::{
         position::Position,
     },
     inventory::components::Inventory,
-    map::SCALE,
     monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
     player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    ITEM_Z, MONSTER_Z, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
 };
 
 const MAX_MONSTERS_PER_ROOM: usize = 2;
 const INVENTORY_SIZE: usize = 4;
 
-pub fn spawn_player(commands: &mut Commands, pos: Position) {
+pub fn spawn_player(
+    commands: &mut Commands,
+    pos: Position,
+    tile_size: f32,
+    scale: f32,
+    player_z: f32,
+    screen_width: f32,
+    screen_height: f32,
+) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(0, 163, 204).into(),
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
+                custom_size: Some(Vec2::new(tile_size * scale, tile_size * scale)),
                 ..Default::default()
             },
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     &pos,
-                    PLAYER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
+                    player_z,
+                    tile_size,
+                    screen_width,
+                    screen_height,
                 ),
-                scale: Vec3::new(SCALE, SCALE, PLAYER_Z),
+                scale: Vec3::new(scale, scale, player_z),
                 ..Default::default()
             },
             ..Default::default()
@@ -64,14 +70,32 @@ pub fn spawn_player(commands: &mut Commands, pos: Position) {
         .insert(Inventory::new(INVENTORY_SIZE));
 }
 
-pub fn spawn_room(commands: &mut Commands, room: &Rectangle, rng: &mut ThreadRng) {
+pub fn spawn_room(
+    commands: &mut Commands,
+    room: &Rectangle,
+    rng: &mut ThreadRng,
+    tile_size: f32,
+    scale: f32,
+    monster_z: f32,
+    item_z: f32,
+    screen_width: f32,
+    screen_height: f32,
+) {
     let mut blocked_positions: HashSet<Position> = HashSet::new();
 
     let monster_count = rng.gen_range(0..=MAX_MONSTERS_PER_ROOM);
     for _ in 0..monster_count {
         match try_find_unblocked_position_in_room(room, &blocked_positions, rng) {
             Some(pos) => {
-                spawn_monster(commands, &pos);
+                spawn_monster(
+                    commands,
+                    &pos,
+                    tile_size,
+                    scale,
+                    monster_z,
+                    screen_width,
+                    screen_height,
+                );
                 blocked_positions.insert(pos);
             }
             None => {
@@ -84,8 +108,24 @@ pub fn spawn_room(commands: &mut Commands, room: &Rectangle, rng: &mut ThreadRng
         Some(pos) => {
             let item_rng: u32 = rng.gen_range(0..=1);
             match item_rng {
-                0 => spawn_health_pot(commands, pos.clone()),
-                _ => spawn_magic_missle_scroll(commands, pos.clone()),
+                0 => spawn_health_pot(
+                    commands,
+                    pos.clone(),
+                    tile_size,
+                    scale,
+                    item_z,
+                    screen_width,
+                    screen_height,
+                ),
+                _ => spawn_magic_missle_scroll(
+                    commands,
+                    pos.clone(),
+                    tile_size,
+                    scale,
+                    item_z,
+                    screen_width,
+                    screen_height,
+                ),
             }
             blocked_positions.insert(pos);
         }
@@ -95,24 +135,32 @@ pub fn spawn_room(commands: &mut Commands, room: &Rectangle, rng: &mut ThreadRng
     }
 }
 
-pub fn spawn_monster(commands: &mut Commands, pos: &Position) {
+pub fn spawn_monster(
+    commands: &mut Commands,
+    pos: &Position,
+    tile_size: f32,
+    scale: f32,
+    monster_z: f32,
+    screen_width: f32,
+    screen_height: f32,
+) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(204, 41, 0).into(),
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
+                custom_size: Some(Vec2::new(tile_size * scale, tile_size * scale)),
                 ..Default::default()
             },
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     pos,
-                    MONSTER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
+                    monster_z,
+                    tile_size,
+                    screen_width,
+                    screen_height,
                 ),
-                scale: Vec3::new(SCALE, SCALE, MONSTER_Z),
+                scale: Vec3::new(scale, scale, monster_z),
                 ..Default::default()
             },
             ..Default::default()
@@ -136,24 +184,32 @@ pub fn spawn_monster(commands: &mut Commands, pos: &Position) {
         .insert(Monster {});
 }
 
-pub fn spawn_health_pot(commands: &mut Commands, pos: Position) {
+pub fn spawn_health_pot(
+    commands: &mut Commands,
+    pos: Position,
+    tile_size: f32,
+    scale: f32,
+    item_z: f32,
+    screen_width: f32,
+    screen_height: f32,
+) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(34, 139, 34).into(),
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
+                custom_size: Some(Vec2::new(tile_size * scale, tile_size * scale)),
                 ..Default::default()
             },
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     &pos,
-                    ITEM_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
+                    item_z,
+                    tile_size,
+                    screen_width,
+                    screen_height,
                 ),
-                scale: Vec3::new(SCALE, SCALE, ITEM_Z),
+                scale: Vec3::new(scale, scale, item_z),
                 ..Default::default()
             },
             ..Default::default()
@@ -172,24 +228,32 @@ pub fn spawn_health_pot(commands: &mut Commands, pos: Position) {
         .insert(Consumable {});
 }
 
-pub fn spawn_magic_missle_scroll(commands: &mut Commands, pos: Position) {
+pub fn spawn_magic_missle_scroll(
+    commands: &mut Commands,
+    pos: Position,
+    tile_size: f32,
+    scale: f32,
+    item_z: f32,
+    screen_width: f32,
+    screen_height: f32,
+) {
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(227, 23, 224).into(),
-                custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
+                custom_size: Some(Vec2::new(tile_size * scale, tile_size * scale)),
                 ..Default::default()
             },
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     &pos,
-                    ITEM_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
+                    item_z,
+                    tile_size,
+                    screen_width,
+                    screen_height,
                 ),
-                scale: Vec3::new(SCALE, SCALE, ITEM_Z),
+                scale: Vec3::new(scale, scale, item_z),
                 ..Default::default()
             },
             ..Default::default()

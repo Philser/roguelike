@@ -38,13 +38,9 @@ pub enum GameState {
 }
 
 pub struct GameConfig {
-    tile_scale: f32,
-    screen_height: f32,
-    screen_width: f32,
-    map_height: i32,
-    map_width: i32,
-    max_rooms: u32,
-    tile_size: f32,
+    tile_properties: TileProperties,
+    screen_dimensions: ScreenDimensions,
+    map_properties: MapProperties,
     player_z: f32,
     monster_z: f32,
     item_z: f32,
@@ -52,6 +48,22 @@ pub struct GameConfig {
 
 pub const SCREEN_HEIGHT: f32 = 720.0;
 pub const SCREEN_WIDTH: f32 = 1280.0;
+
+pub struct ScreenDimensions {
+    screen_height: f32,
+    screen_width: f32,
+}
+
+pub struct TileProperties {
+    tile_size: f32,
+    tile_scale: f32,
+}
+
+pub struct MapProperties {
+    map_height: i32,
+    map_width: i32,
+    max_rooms: u32,
+}
 
 fn main() {
     App::new()
@@ -63,14 +75,20 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(GameConfig {
-            tile_scale: 1.0,
-            screen_height: SCREEN_HEIGHT,
-            screen_width: SCREEN_WIDTH,
-            map_height: 30,
-            map_width: 60,
-            max_rooms: 10,
+            tile_properties: TileProperties {
+                tile_scale: 1.0,
+                tile_size: 16.0,
+            },
+            screen_dimensions: ScreenDimensions {
+                screen_height: SCREEN_HEIGHT,
+                screen_width: SCREEN_WIDTH,
+            },
+            map_properties: MapProperties {
+                map_height: 30,
+                map_width: 60,
+                max_rooms: 10,
+            },
             item_z: 3.0,
-            tile_size: 16.0,
             monster_z: 5.0,
             player_z: 5.0,
         })
