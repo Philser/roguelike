@@ -1,4 +1,5 @@
 mod components;
+mod config;
 mod damage_system;
 mod inventory;
 mod map;
@@ -21,13 +22,6 @@ use player::PlayerPlugin;
 use user_interface::UIPlugin;
 use viewshed::ViewshedPlugin;
 
-const TILE_SIZE: f32 = 16.0;
-const PLAYER_Z: f32 = 5.0;
-const MONSTER_Z: f32 = 5.0;
-const ITEM_Z: f32 = 3.0;
-const SCREEN_HEIGHT: f32 = 720.0;
-const SCREEN_WIDTH: f32 = 1280.0;
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum GameState {
     LoadingResources,
@@ -43,6 +37,22 @@ pub enum GameState {
     AwaitingInventoryInput,
 }
 
+pub struct GameConfig {
+    tile_scale: f32,
+    screen_height: f32,
+    screen_width: f32,
+    map_height: i32,
+    map_width: i32,
+    max_rooms: u32,
+    tile_size: f32,
+    player_z: f32,
+    monster_z: f32,
+    item_z: f32,
+}
+
+pub const SCREEN_HEIGHT: f32 = 720.0;
+pub const SCREEN_WIDTH: f32 = 1280.0;
+
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
@@ -51,6 +61,18 @@ fn main() {
             height: SCREEN_HEIGHT,
             title: "Roguelike".to_owned(),
             ..Default::default()
+        })
+        .insert_resource(GameConfig {
+            tile_scale: 1.0,
+            screen_height: SCREEN_HEIGHT,
+            screen_width: SCREEN_WIDTH,
+            map_height: 30,
+            map_width: 60,
+            max_rooms: 10,
+            item_z: 3.0,
+            tile_size: 16.0,
+            monster_z: 5.0,
+            player_z: 5.0,
         })
         .insert_resource(DamageTracker(HashMap::new()))
         .insert_resource(UserInput { x: 0, y: 0 })
