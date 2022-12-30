@@ -12,7 +12,7 @@ use crate::{
     spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameConfig, GameState, MapProperties,
+    GameConfig, GameState, MapProperties, ScreenDimensions, TileProperties,
 };
 
 pub struct GameMapPlugin {}
@@ -141,7 +141,15 @@ fn apply_room_to_map(map: &mut GameMap, room: &Rectangle) {
 }
 
 /// Generate the world map by randomly generating rooms
-fn generate_map(commands: &mut Commands, map_properties: &MapProperties) -> GameMap {
+fn generate_map(
+    commands: &mut Commands,
+    map_properties: &MapProperties,
+    tile_properties: &TileProperties,
+    screen_dimensions: &ScreenDimensions,
+    player_z: f32,
+    monster_z: f32,
+    item_z: f32,
+) -> GameMap {
     let mut tiles: HashMap<Position, TileType> = HashMap::new();
     let mut collidables: HashSet<Position> = HashSet::new();
 
@@ -162,30 +170,48 @@ fn generate_map(commands: &mut Commands, map_properties: &MapProperties) -> Game
         HashMap::new(),
     );
 
-    generate_rooms(commands, &mut game_map, &map_properties);
+    generate_rooms(
+        commands,
+        &mut game_map,
+        tile_properties,
+        screen_dimensions,
+        map_properties.max_rooms,
+        player_z,
+        monster_z,
+        item_z,
+    );
 
     game_map
 }
 
 /// Creates non-overlapping rooms on the map and fills them with the player (first room) or
 /// monsters (all other rooms)
-fn generate_rooms(commands: &mut Commands, game_map: &mut GameMap, map_properties: &MapProperties) {
-    let room_min_height = map_properties.map_height / 10;
-    let room_min_width = map_properties.map_width / 10;
-    let room_max_height = map_properties.map_height / 5;
-    let room_max_width = map_properties.map_width / 5;
+fn generate_rooms(
+    commands: &mut Commands,
+    game_map: &mut GameMap,
+    tile_properties: &TileProperties,
+    screen_dimensions: &ScreenDimensions,
+    max_rooms: u32,
+    player_z: f32,
+    monster_z: f32,
+    item_z: f32,
+) {
+    let room_min_height = game_map.height / 10;
+    let room_min_width = game_map.width / 10;
+    let room_max_height = game_map.height / 5;
+    let room_max_width = game_map.width / 5;
     let mut rooms: Vec<Rectangle> = vec![];
 
     let mut rand = rand::thread_rng();
 
-    for room_no in 0..map_properties.max_rooms {
+    for room_no in 0..max_rooms {
         let new_room = generate_room(
             room_min_height,
             room_max_height,
             room_min_width,
             room_max_width,
-            map_properties.map_width,
-            map_properties.map_height,
+            game_map.width,
+            game_map.height,
             &mut rand,
         );
 
@@ -198,9 +224,23 @@ fn generate_rooms(commands: &mut Commands, game_map: &mut GameMap, map_propertie
         if room_no == 0 {
             // Place player in first room
             let (x, y) = &new_room.get_center();
-            spawn_player(commands, Position { x: *x, y: *y }, game);
+            spawn_player(
+                commands,
+                Position { x: *x, y: *y },
+                tile_properties,
+                player_z,
+                screen_dimensions,
+            );
         } else {
-            spawner::spawn_room(commands, &new_room, &mut rand);
+            spawner::spawn_room(
+                commands,
+                &new_room,
+                &mut rand,
+                tile_properties,
+                screen_dimensions,
+                monster_z,
+                item_z,
+            );
         }
 
         apply_room_to_map(game_map, &new_room);
@@ -296,7 +336,15 @@ fn setup(
     };
     commands.insert_resource(material_handles.clone());
 
-    let map = generate_map(&mut commands, &game_config);
+    let map = generate_map(
+        &mut commands,
+        &game_config.map_properties,
+        &game_config.tile_properties,
+        &game_config.screen_dimensions,
+        game_config.player_z,
+        game_config.monster_z,
+        game_config.item_z,
+    );
 
     commands.insert_resource(map);
 
@@ -411,25 +459,27 @@ fn spawn_map_tiles(
         };
 
         let mut entity = commands.spawn();
+        let scaled_tile_size =
+            game_config.tile_properties.tile_size * game_config.tile_properties.tile_scale;
         entity
             .insert_bundle(SpriteBundle {
                 sprite: Sprite {
                     color: material.color,
-                    custom_size: Some(Vec2::new(
-                        game_config.tile_size * game_config.tile_scale,
-                        game_config.tile_size * game_config.tile_scale,
-                    )),
+                    custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
                     ..Default::default()
                 },
                 transform: Transform {
                     translation: map_pos_to_screen_pos(
                         pos,
                         0.0,
-                        game_config.tile_size,
-                        game_config.screen_width,
-                        game_config.screen_height,
+                        game_config.tile_properties.tile_size,
+                        &game_config.screen_dimensions,
                     ),
-                    scale: Vec3::new(game_config.tile_scale, game_config.tile_scale, 0.0),
+                    scale: Vec3::new(
+                        game_config.tile_properties.tile_scale,
+                        game_config.tile_properties.tile_scale,
+                        0.0,
+                    ),
                     ..Default::default()
                 },
                 visibility: Visibility { is_visible: false },

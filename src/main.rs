@@ -59,6 +59,12 @@ pub struct TileProperties {
     tile_scale: f32,
 }
 
+impl TileProperties {
+    pub fn get_scaled_tile_size(&self) -> f32 {
+        return self.tile_scale * self.tile_size;
+    }
+}
+
 pub struct MapProperties {
     map_height: i32,
     map_width: i32,
