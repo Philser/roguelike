@@ -1,5 +1,5 @@
 mod components;
-mod config;
+mod configs;
 mod damage_system;
 mod inventory;
 mod map;
@@ -14,6 +14,10 @@ use std::collections::HashMap;
 
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
 use components::{damage::DamageTracker, user_input::UserInput};
+use configs::game_settings::{
+    GameConfig, GameplaySettings, MapProperties, ScreenDimensions, TileProperties, SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+};
 use damage_system::DamageSystemPlugin;
 use inventory::plugin::InventorySystemPlugin;
 use map::GameMapPlugin;
@@ -37,40 +41,6 @@ pub enum GameState {
     AwaitingInventoryInput,
 }
 
-pub struct GameConfig {
-    tile_properties: TileProperties,
-    screen_dimensions: ScreenDimensions,
-    map_properties: MapProperties,
-    player_z: f32,
-    monster_z: f32,
-    item_z: f32,
-}
-
-pub const SCREEN_HEIGHT: f32 = 720.0;
-pub const SCREEN_WIDTH: f32 = 1280.0;
-
-pub struct ScreenDimensions {
-    screen_height: f32,
-    screen_width: f32,
-}
-
-pub struct TileProperties {
-    tile_size: f32,
-    tile_scale: f32,
-}
-
-impl TileProperties {
-    pub fn get_scaled_tile_size(&self) -> f32 {
-        return self.tile_scale * self.tile_size;
-    }
-}
-
-pub struct MapProperties {
-    map_height: i32,
-    map_width: i32,
-    max_rooms: u32,
-}
-
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
@@ -84,6 +54,9 @@ fn main() {
             tile_properties: TileProperties {
                 tile_scale: 1.0,
                 tile_size: 16.0,
+                item_z: 3.0,
+                monster_z: 5.0,
+                player_z: 5.0,
             },
             screen_dimensions: ScreenDimensions {
                 screen_height: SCREEN_HEIGHT,
@@ -94,9 +67,11 @@ fn main() {
                 map_width: 60,
                 max_rooms: 10,
             },
-            item_z: 3.0,
-            monster_z: 5.0,
-            player_z: 5.0,
+            gameplay_settings: GameplaySettings {
+                player_starting_health: 100,
+                health_potion_heal_amount: 20,
+                monster_starting_health: 50,
+            },
         })
         .insert_resource(DamageTracker(HashMap::new()))
         .insert_resource(UserInput { x: 0, y: 0 })

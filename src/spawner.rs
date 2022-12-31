@@ -5,7 +5,7 @@ use crate::{
     components::{
         collidable::Collidable,
         combat_stats::CombatStats,
-        item::{Heals, Item, DEFAULT_HEALTH_POTION_HEAL},
+        item::{Heals, Item},
     },
     components::{
         consumable::Consumable,
@@ -13,9 +13,10 @@ use crate::{
         item::{ItemName, Ranged},
         position::Position,
     },
+    configs::game_settings::GameplaySettings,
     inventory::components::Inventory,
-    monster::{Monster, MONSTER_FOV, MONSTER_STARTING_HEALTH},
-    player::{Player, PLAYER_FOV, PLAYER_STARTING_HEALTH},
+    monster::{Monster, MONSTER_FOV},
+    player::{Player, PLAYER_FOV},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
     ScreenDimensions, TileProperties,
@@ -28,8 +29,8 @@ pub fn spawn_player(
     commands: &mut Commands,
     pos: Position,
     tile_properties: &TileProperties,
-    player_z: f32,
     screen_dimensions: &ScreenDimensions,
+    gameplay_settings: &GameplaySettings,
 ) {
     let scaled_tilesize = tile_properties.get_scaled_tile_size();
     commands
@@ -43,14 +44,14 @@ pub fn spawn_player(
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     &pos,
-                    player_z,
+                    tile_properties.player_z,
                     tile_properties.tile_size,
                     screen_dimensions,
                 ),
                 scale: Vec3::new(
                     tile_properties.tile_scale,
                     tile_properties.tile_scale,
-                    player_z,
+                    tile_properties.player_z,
                 ),
                 ..Default::default()
             },
@@ -58,8 +59,8 @@ pub fn spawn_player(
         })
         .insert(pos)
         .insert(CombatStats {
-            hp: PLAYER_STARTING_HEALTH,
-            max_hp: PLAYER_STARTING_HEALTH,
+            hp: gameplay_settings.player_starting_health,
+            max_hp: gameplay_settings.player_starting_health,
             defense: 0,
             power: 5,
         })
@@ -79,8 +80,7 @@ pub fn spawn_room(
     rng: &mut ThreadRng,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
-    monster_z: f32,
-    item_z: f32,
+    gameplay_settings: &GameplaySettings,
 ) {
     let mut blocked_positions: HashSet<Position> = HashSet::new();
 
@@ -93,7 +93,7 @@ pub fn spawn_room(
                     &pos,
                     tile_properties,
                     screen_dimensions,
-                    monster_z,
+                    gameplay_settings,
                 );
                 blocked_positions.insert(pos);
             }
@@ -112,14 +112,13 @@ pub fn spawn_room(
                     pos.clone(),
                     tile_properties,
                     screen_dimensions,
-                    item_z,
+                    gameplay_settings,
                 ),
                 _ => spawn_magic_missle_scroll(
                     commands,
                     pos.clone(),
                     tile_properties,
                     screen_dimensions,
-                    item_z,
                 ),
             }
             blocked_positions.insert(pos);
@@ -135,7 +134,7 @@ pub fn spawn_monster(
     pos: &Position,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
-    monster_z: f32,
+    gameplay_settings: &GameplaySettings,
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
@@ -149,14 +148,14 @@ pub fn spawn_monster(
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     pos,
-                    monster_z,
+                    tile_properties.monster_z,
                     tile_properties.tile_size,
                     screen_dimensions,
                 ),
                 scale: Vec3::new(
                     tile_properties.tile_scale,
                     tile_properties.tile_scale,
-                    monster_z,
+                    tile_properties.monster_z,
                 ),
                 ..Default::default()
             },
@@ -167,8 +166,8 @@ pub fn spawn_monster(
             y: pos.y as i32,
         })
         .insert(CombatStats {
-            hp: MONSTER_STARTING_HEALTH,
-            max_hp: MONSTER_STARTING_HEALTH,
+            hp: gameplay_settings.monster_starting_health,
+            max_hp: gameplay_settings.monster_starting_health,
             defense: 0,
             power: 2,
         })
@@ -186,7 +185,7 @@ pub fn spawn_health_pot(
     pos: Position,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
-    item_z: f32,
+    gameplay_settings: &GameplaySettings,
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
@@ -200,14 +199,14 @@ pub fn spawn_health_pot(
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     &pos,
-                    item_z,
+                    tile_properties.item_z,
                     tile_properties.tile_size,
                     screen_dimensions,
                 ),
                 scale: Vec3::new(
                     tile_properties.tile_scale,
                     tile_properties.tile_scale,
-                    item_z,
+                    tile_properties.item_z,
                 ),
                 ..Default::default()
             },
@@ -222,7 +221,7 @@ pub fn spawn_health_pot(
             name: "Health Potion".to_owned(),
         })
         .insert(Heals {
-            heal_amount: DEFAULT_HEALTH_POTION_HEAL,
+            heal_amount: gameplay_settings.health_potion_heal_amount,
         })
         .insert(Consumable {});
 }
@@ -232,7 +231,6 @@ pub fn spawn_magic_missle_scroll(
     pos: Position,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
-    item_z: f32,
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
@@ -246,14 +244,14 @@ pub fn spawn_magic_missle_scroll(
             transform: Transform {
                 translation: map_pos_to_screen_pos(
                     &pos,
-                    item_z,
+                    tile_properties.item_z,
                     tile_properties.tile_size,
                     screen_dimensions,
                 ),
                 scale: Vec3::new(
                     tile_properties.tile_scale,
                     tile_properties.tile_scale,
-                    item_z,
+                    tile_properties.item_z,
                 ),
                 ..Default::default()
             },

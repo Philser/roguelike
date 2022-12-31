@@ -8,6 +8,7 @@ use rand::{prelude::ThreadRng, Rng};
 
 use crate::{
     components::position::Position,
+    configs::game_settings::GameplaySettings,
     player::Player,
     spawner::{self, spawn_player},
     utils::{rectangle::Rectangle, render::map_pos_to_screen_pos},
@@ -146,9 +147,7 @@ fn generate_map(
     map_properties: &MapProperties,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
-    player_z: f32,
-    monster_z: f32,
-    item_z: f32,
+    gameplay_settings: &GameplaySettings,
 ) -> GameMap {
     let mut tiles: HashMap<Position, TileType> = HashMap::new();
     let mut collidables: HashSet<Position> = HashSet::new();
@@ -175,10 +174,8 @@ fn generate_map(
         &mut game_map,
         tile_properties,
         screen_dimensions,
+        gameplay_settings,
         map_properties.max_rooms,
-        player_z,
-        monster_z,
-        item_z,
     );
 
     game_map
@@ -191,10 +188,8 @@ fn generate_rooms(
     game_map: &mut GameMap,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
+    gameplay_settings: &GameplaySettings,
     max_rooms: u32,
-    player_z: f32,
-    monster_z: f32,
-    item_z: f32,
 ) {
     let room_min_height = game_map.height / 10;
     let room_min_width = game_map.width / 10;
@@ -228,8 +223,8 @@ fn generate_rooms(
                 commands,
                 Position { x: *x, y: *y },
                 tile_properties,
-                player_z,
                 screen_dimensions,
+                gameplay_settings,
             );
         } else {
             spawner::spawn_room(
@@ -238,8 +233,7 @@ fn generate_rooms(
                 &mut rand,
                 tile_properties,
                 screen_dimensions,
-                monster_z,
-                item_z,
+                gameplay_settings,
             );
         }
 
@@ -341,9 +335,7 @@ fn setup(
         &game_config.map_properties,
         &game_config.tile_properties,
         &game_config.screen_dimensions,
-        game_config.player_z,
-        game_config.monster_z,
-        game_config.item_z,
+        &game_config.gameplay_settings,
     );
 
     commands.insert_resource(map);

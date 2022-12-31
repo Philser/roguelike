@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     components::position::Position,
     components::{combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage},
+    configs::game_settings::TileProperties,
     map::GameMap,
     player::Player,
     user_interface::ActionLog,
@@ -12,8 +13,6 @@ use crate::{
 };
 
 pub const MONSTER_FOV: i32 = 8;
-pub const MONSTER_STARTING_HEALTH: i32 = 50;
-
 pub const MONSTER_TURN_LABEL: &str = "monster_turn";
 
 pub struct MonsterPlugin {}
@@ -83,8 +82,7 @@ fn monster_ai(
                 &mut damage_tracker,
                 player_entity,
                 action_log_ref,
-                game_config.monster_z,
-                game_config.tile_properties.tile_size,
+                &game_config.tile_properties,
                 &game_config.screen_dimensions,
             );
         }
@@ -106,8 +104,7 @@ fn move_to_player(
     damage_tracker: &mut ResMut<DamageTracker>,
     player_entity: Entity,
     action_log: &mut ActionLog,
-    monster_z: f32,
-    tile_size: f32,
+    tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
 ) {
     let position = monster_pos.clone();
@@ -131,8 +128,12 @@ fn move_to_player(
             map.set_blocked(monster_pos.clone());
             map.set_tile_content(monster_pos.clone(), monster_entity);
 
-            monster_tf.translation =
-                map_pos_to_screen_pos(monster_pos, monster_z, tile_size, screen_dimensions);
+            monster_tf.translation = map_pos_to_screen_pos(
+                monster_pos,
+                tile_properties.monster_z,
+                tile_properties.tile_size,
+                screen_dimensions,
+            );
 
             viewshed.dirty = true; // Monster moved, re-compute viewshed
         } else {

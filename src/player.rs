@@ -17,7 +17,6 @@ use crate::{
     GameConfig, GameState,
 };
 
-pub const PLAYER_STARTING_HEALTH: i32 = 100;
 pub const PLAYER_FOV: i32 = 10;
 
 pub const PLAYER_TURN_LABEL: &str = "player_turn";
@@ -162,7 +161,7 @@ fn player_turn(
 
                 player_tf.translation = map_pos_to_screen_pos(
                     &player_pos,
-                    game_config.player_z,
+                    game_config.tile_properties.player_z,
                     game_config.tile_properties.tile_size,
                     &game_config.screen_dimensions,
                 );
