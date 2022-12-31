@@ -8,7 +8,7 @@ use crate::{
     user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
-    GameConfig, GameState,
+    GameConfig, GameState, ScreenDimensions,
 };
 
 pub const MONSTER_FOV: i32 = 8;
@@ -84,9 +84,8 @@ fn monster_ai(
                 player_entity,
                 action_log_ref,
                 game_config.monster_z,
-                game_config.tile_size,
-                game_config.screen_width,
-                game_config.screen_height,
+                game_config.tile_properties.tile_size,
+                &game_config.screen_dimensions,
             );
         }
     }
@@ -109,8 +108,7 @@ fn move_to_player(
     action_log: &mut ActionLog,
     monster_z: f32,
     tile_size: f32,
-    screen_width: f32,
-    screen_height: f32,
+    screen_dimensions: &ScreenDimensions,
 ) {
     let position = monster_pos.clone();
     let path_result_opt = pathfinding::directed::astar::astar(
@@ -133,13 +131,8 @@ fn move_to_player(
             map.set_blocked(monster_pos.clone());
             map.set_tile_content(monster_pos.clone(), monster_entity);
 
-            monster_tf.translation = map_pos_to_screen_pos(
-                monster_pos,
-                monster_z,
-                tile_size,
-                screen_width,
-                screen_height,
-            );
+            monster_tf.translation =
+                map_pos_to_screen_pos(monster_pos, monster_z, tile_size, screen_dimensions);
 
             viewshed.dirty = true; // Monster moved, re-compute viewshed
         } else {

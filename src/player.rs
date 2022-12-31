@@ -163,9 +163,8 @@ fn player_turn(
                 player_tf.translation = map_pos_to_screen_pos(
                     &player_pos,
                     game_config.player_z,
-                    game_config.tile_size,
-                    game_config.screen_width,
-                    game_config.screen_height,
+                    game_config.tile_properties.tile_size,
+                    &game_config.screen_dimensions,
                 );
 
                 viewshed.dirty = true;
