@@ -4,7 +4,7 @@ use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting, MapData};
 
 use crate::{
     components::position::Position,
-    map::{GameMap, TileType},
+    map::{game_map::GameMap, TileType},
     monster::Monster,
     player::Player,
 };

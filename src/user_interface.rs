@@ -4,11 +4,11 @@ use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
     components::{combat_stats::CombatStats, position::Position},
-    map::{MainCamera, Tile, RENDER_MAP_LABEL, SCALE},
-    player::{Player, PLAYER_STARTING_HEALTH},
+    map::{MainCamera, Tile},
+    player::Player,
     utils::render::map_pos_to_screen_pos,
     viewshed::Viewshed,
-    GameState, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameConfig, GameState, ScreenDimensions, TileProperties,
 };
 
 const ACTION_LOG_MAX_LINES: usize = 7;
@@ -28,7 +28,7 @@ impl Plugin for UIPlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::Render)
                     .with_system(render_ui)
-                    .after(RENDER_MAP_LABEL),
+                    .after("render_map"),
             )
             .add_system_set(
                 SystemSet::on_enter(GameState::AwaitingActionInput).with_system(render_ui),
@@ -59,7 +59,7 @@ pub struct TargetingTile {}
 
 pub struct UIFont(Handle<Font>);
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, game_config: Res<GameConfig>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     let font_handle: Handle<Font> = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
@@ -78,19 +78,24 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         color: Color::PURPLE.into(),
         ..default()
     });
-    spawn_health_bar(&mut commands_builder, font_handle.clone());
+    spawn_health_bar(
+        &mut commands_builder,
+        font_handle.clone(),
+        game_config.gameplay_settings.player_starting_health as f32,
+    );
     spawn_action_log(&mut commands_builder, font_handle);
 }
 
-fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) {
+fn spawn_health_bar(
+    commands: &mut EntityCommands,
+    text_font: Handle<Font>,
+    player_starting_health: f32,
+) {
     commands.with_children(|parent| {
         parent
             .spawn_bundle(NodeBundle {
                 style: Style {
-                    size: Size::new(
-                        Val::Px(PLAYER_STARTING_HEALTH as f32 * 3.0),
-                        Val::Percent(10.0),
-                    ),
+                    size: Size::new(Val::Px(player_starting_health * 3.0), Val::Percent(10.0)),
                     position_type: PositionType::Absolute,
                     position: Rect {
                         left: Val::Percent(50.0),
@@ -112,7 +117,7 @@ fn spawn_health_bar(commands: &mut EntityCommands, text_font: Handle<Font>) {
                             ..default()
                         },
                         text: Text::with_section(
-                            format!("{}/{}", PLAYER_STARTING_HEALTH, PLAYER_STARTING_HEALTH),
+                            format!("{}/{}", player_starting_health, player_starting_health),
                             TextStyle {
                                 font: text_font,
                                 font_size: 27.0,
@@ -234,9 +239,10 @@ fn render_target_mode(
     viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
     target_mode_query: Query<&TargetingModeContext>,
     tiles_query: Query<(&Position, With<Tile>)>,
-    mut targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite), With<TargetingTile>>,
+    targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite), With<TargetingTile>>,
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    game_config: Res<GameConfig>,
 ) {
     if targeting_tiles_query.is_empty() {
         // We just entered targeting mode
@@ -248,7 +254,15 @@ fn render_target_mode(
             .get_single()
             .expect("Expected a single TargetModeContext component in render_target_mode");
 
-        create_targeting_tiles(commands, player_pos, viewshed, target_ctx, tiles_query);
+        create_targeting_tiles(
+            commands,
+            player_pos,
+            viewshed,
+            target_ctx,
+            tiles_query,
+            &game_config.screen_dimensions,
+            &game_config.tile_properties,
+        );
     } else {
         // We are waiting for the player to pick a target
         let window = windows.get_primary().unwrap();
@@ -265,6 +279,8 @@ fn create_targeting_tiles(
     player_viewshed: &Viewshed,
     target_ctx: &TargetingModeContext,
     tiles_query: Query<(&Position, With<Tile>)>,
+    screen_dimensions: &ScreenDimensions,
+    tile_properties: &TileProperties,
 ) {
     let visible_positions = &player_viewshed.visible_tiles;
 
@@ -275,6 +291,7 @@ fn create_targeting_tiles(
         }
     }
 
+    let scaled_tile_size = tile_properties.get_scaled_tile_size();
     for (pos, _) in tiles_query.iter() {
         if pos_in_range.contains(pos) {
             commands
@@ -282,18 +299,21 @@ fn create_targeting_tiles(
                 .insert_bundle(SpriteBundle {
                     sprite: Sprite {
                         color: TARGETING_MODE_TILE_COLOR,
-                        custom_size: Some(Vec2::new(TILE_SIZE * SCALE, TILE_SIZE * SCALE)),
+                        custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
                         ..Default::default()
                     },
                     transform: Transform {
                         translation: map_pos_to_screen_pos(
                             pos,
                             10.0,
-                            TILE_SIZE,
-                            SCREEN_WIDTH,
-                            SCREEN_HEIGHT,
+                            tile_properties.tile_size,
+                            screen_dimensions,
                         ),
-                        scale: Vec3::new(SCALE, SCALE, 1.0),
+                        scale: Vec3::new(
+                            tile_properties.tile_scale,
+                            tile_properties.tile_scale,
+                            1.0,
+                        ),
                         ..Default::default()
                     },
                     ..Default::default()
