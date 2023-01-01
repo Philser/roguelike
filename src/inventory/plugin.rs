@@ -12,7 +12,7 @@ impl Plugin for InventorySystemPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(SystemSet::on_update(GameState::PlayerTurn).with_system(pickup_handler));
         app.add_system_set(
-            SystemSet::on_update(GameState::AwaitingInventoryInput).with_system(use_item_handler),
+            SystemSet::on_update(GameState::PlayerTurn).with_system(use_item_handler),
         );
         app.add_system_set(
             SystemSet::on_update(GameState::AwaitingInventoryInput).with_system(user_input_handler),

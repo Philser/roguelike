@@ -6,9 +6,11 @@ use crate::{
     components::{
         combat_stats::CombatStats,
         consumable::Consumable,
+        damage::{DamageTracker, InflictsDamage, SufferDamage},
         item::{Heals, Item, Ranged},
         position::Position,
     },
+    map::game_map::GameMap,
     player::Player,
     user_interface::{ActionLog, ActionLogText, HealthBar, HealthText, TargetingModeContext},
     utils::input_utils::get_movement_input,
@@ -64,7 +66,6 @@ pub fn pickup_handler(
 
 /// System processing player input while in the inventory. Responsible for moving the cursor for the selected
 /// item slot, using items and closing the inventory.
-/// // TODO: This gets too large, find a way to split this up
 pub fn user_input_handler(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut app_state: ResMut<State<GameState>>,
@@ -73,9 +74,6 @@ pub fn user_input_handler(
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
     mut inventory_query: Query<&mut Inventory>,
     ui_slots_query: Query<Entity, With<UISlots>>,
-    player_stats_query: Query<&mut CombatStats, With<Player>>,
-    healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
-    healthbar_query: Query<&mut Style, With<HealthBar>>,
     item_query: Query<Option<&Ranged>, With<Item>>,
 ) {
     let key_press = keyboard_input.clone();
@@ -111,17 +109,20 @@ pub fn user_input_handler(
         new_app_state = GameState::AwaitingActionInput;
     }
 
-    if new_app_state == GameState::AwaitingActionInput || new_app_state == GameState::Targeting {
-        let ui_slots_entity = ui_slots_query
-            .get_single()
-            .expect("while querying in user_input_handler");
+    match new_app_state {
+        GameState::AwaitingActionInput | GameState::Targeting | GameState::PlayerTurn => {
+            let ui_slots_entity = ui_slots_query
+                .get_single()
+                .expect("while querying in user_input_handler");
 
-        despawn_inventory(
-            &mut commands,
-            inventory_ui_root,
-            cursor_entity,
-            ui_slots_entity,
-        );
+            despawn_inventory(
+                &mut commands,
+                inventory_ui_root,
+                cursor_entity,
+                ui_slots_entity,
+            );
+        }
+        _ => {}
     }
 
     app_state
@@ -370,17 +371,28 @@ fn get_ui_root_bundle() -> NodeBundle {
 pub fn use_item_handler(
     mut commands: Commands,
     mut inventory_query: Query<&mut Inventory>,
-    wants_to_use_item_query: Query<&WantsToUseItem>,
-    item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
+    wants_to_use_item_query: Query<(Entity, &WantsToUseItem)>,
+    item_query: Query<
+        (
+            Option<&Heals>,
+            Option<&Consumable>,
+            Option<&InflictsDamage>,
+            Option<&Ranged>,
+        ),
+        With<Item>,
+    >,
     mut player_stats_query: Query<&mut CombatStats, With<Player>>,
     mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+    mut action_log: ResMut<ActionLog>,
+    mut damage_tracker: ResMut<DamageTracker>,
+    game_map: Res<GameMap>,
 ) {
     let mut inventory = inventory_query
         .get_single_mut()
         .expect("Could not get single inventory");
 
-    for item in wants_to_use_item_query.iter() {
+    for (wants_to_use_item_entity, item) in wants_to_use_item_query.iter() {
         match item_query.get(item.entity) {
             Ok(query) => {
                 if let Some(heals) = query.0 {
@@ -399,12 +411,21 @@ pub fn use_item_handler(
                     commands.entity(item.entity).despawn();
                 }
 
-                if let Some(ranged) = query.2 {
-                    commands.spawn().insert(TargetingModeContext {
-                        item: item.entity,
-                        range: ranged.range,
-                    });
+                if let Some(target) = item.target.clone() {
+                    if let Some(inflicts_damage) = query.2 {
+                        if let Some(entity) = game_map.tile_content.get(&target) {
+                            SufferDamage::add_damage(
+                                &mut damage_tracker,
+                                *entity,
+                                inflicts_damage.damage,
+                                action_log.as_mut(),
+                                true,
+                            );
+                        }
+                    }
                 }
+
+                commands.entity(wants_to_use_item_entity).despawn();
             }
             Err(_) => bevy::log::error!("Unimplemented item behaviour"),
         }

@@ -238,19 +238,23 @@ fn render_action_log(
 
 fn render_target_mode(
     mut commands: Commands,
+    mut app_state: ResMut<State<GameState>>,
     viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
-    target_mode_query: Query<&TargetingModeContext>,
+    target_mode_query: Query<(Entity, &TargetingModeContext)>,
     tiles_query: Query<(&Position, With<Tile>)>,
-    targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite, &Position), With<TargetingTile>>,
+    mut targeting_tiles_query: ParamSet<(
+        Query<(&GlobalTransform, &mut Sprite, &Position), With<TargetingTile>>,
+        Query<Entity, With<TargetingTile>>,
+    )>,
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     game_config: Res<GameConfig>,
     mouse_buttons: Res<Input<MouseButton>>,
 ) {
-    let target_ctx = target_mode_query
+    let (target_ctx_entity, target_ctx) = target_mode_query
         .get_single()
         .expect("Expected a single TargetModeContext component in render_target_mode");
-    if targeting_tiles_query.is_empty() {
+    if targeting_tiles_query.p0().is_empty() {
         // We just entered targeting mode
         let (player_pos, viewshed, _) = viewshed_player_query
             .get_single()
@@ -270,13 +274,27 @@ fn render_target_mode(
         let window = windows.get_primary().unwrap();
 
         if let Some(mouse_pos) = window.cursor_position() {
-            let target_pos = draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query);
+            let target_pos =
+                draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query.p0());
 
+            // Fire
             if mouse_buttons.just_pressed(MouseButton::Left) && target_pos.is_some() {
                 commands.spawn().insert(WantsToUseItem {
                     entity: target_ctx.item,
                     target: target_pos,
                 });
+
+                // Delete Targeting Tiles
+                let entities: Vec<Entity> = targeting_tiles_query.p1().iter().collect();
+                for entity in entities {
+                    commands.entity(entity).despawn();
+                }
+
+                commands.entity(target_ctx_entity).despawn();
+
+                app_state
+                    .set(GameState::PlayerTurn)
+                    .expect("Setting GameState in targeting mode");
             }
         }
     }
