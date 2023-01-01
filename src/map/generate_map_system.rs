@@ -14,10 +14,7 @@ use crate::{
     GameConfig, GameState, MapProperties, ScreenDimensions, TileProperties,
 };
 
-use super::{game_map::GameMap, MaterialHandles, TileType};
-
-#[derive(Component)]
-pub struct MainCamera {}
+use super::{game_map::GameMap, MainCamera, MaterialHandles, TileType};
 
 /// Generate the map, load materials and spawn the camera.
 /// Sets the game to `GameState::MapLoaded` when done
