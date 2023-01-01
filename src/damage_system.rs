@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use crate::components::{damage::DamageTracker, combat_stats::CombatStats};
+use crate::components::{combat_stats::CombatStats, damage::DamageTracker};
 use crate::monster::MONSTER_TURN_LABEL;
 use crate::player::{Player, PLAYER_TURN_LABEL};
 use crate::user_interface::ActionLog;
 use crate::GameState;
-use crate::{map::GameMap, components::position::Position};
+use crate::{components::position::Position, map::game_map::GameMap};
 
 pub struct DamageSystemPlugin {}
 

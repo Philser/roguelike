@@ -20,7 +20,7 @@ use configs::game_settings::{
 };
 use damage_system::DamageSystemPlugin;
 use inventory::plugin::InventorySystemPlugin;
-use map::GameMapPlugin;
+use map::plugin::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
 use user_interface::UIPlugin;

@@ -10,7 +10,7 @@ use crate::{
         user_input::UserInput,
     },
     inventory::components::WantsToPickupItem,
-    map::GameMap,
+    map::game_map::GameMap,
     user_interface::ActionLog,
     utils::{input_utils::get_movement_input, render::map_pos_to_screen_pos},
     viewshed::Viewshed,

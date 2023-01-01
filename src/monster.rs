@@ -4,7 +4,7 @@ use crate::{
     components::position::Position,
     components::{combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage},
     configs::game_settings::TileProperties,
-    map::GameMap,
+    map::game_map::GameMap,
     player::Player,
     user_interface::ActionLog,
     utils::render::map_pos_to_screen_pos,
