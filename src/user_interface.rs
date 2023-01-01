@@ -4,6 +4,7 @@ use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
     components::{combat_stats::CombatStats, position::Position},
+    inventory::components::WantsToUseItem,
     map::{MainCamera, Tile},
     player::Player,
     utils::render::map_pos_to_screen_pos,
@@ -52,6 +53,7 @@ pub struct ActionLogText {}
 #[derive(Component)]
 pub struct TargetingModeContext {
     pub range: u32,
+    pub item: Entity,
 }
 
 #[derive(Component)]
@@ -235,24 +237,24 @@ fn render_action_log(
 }
 
 fn render_target_mode(
-    commands: Commands,
+    mut commands: Commands,
     viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
     target_mode_query: Query<&TargetingModeContext>,
     tiles_query: Query<(&Position, With<Tile>)>,
-    targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite), With<TargetingTile>>,
+    targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite, &Position), With<TargetingTile>>,
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     game_config: Res<GameConfig>,
+    mouse_buttons: Res<Input<MouseButton>>,
 ) {
+    let target_ctx = target_mode_query
+        .get_single()
+        .expect("Expected a single TargetModeContext component in render_target_mode");
     if targeting_tiles_query.is_empty() {
         // We just entered targeting mode
         let (player_pos, viewshed, _) = viewshed_player_query
             .get_single()
             .expect("Expected a single player viewshed in render_target_mode");
-
-        let target_ctx = target_mode_query
-            .get_single()
-            .expect("Expected a single TargetModeContext component in render_target_mode");
 
         create_targeting_tiles(
             commands,
@@ -268,7 +270,14 @@ fn render_target_mode(
         let window = windows.get_primary().unwrap();
 
         if let Some(mouse_pos) = window.cursor_position() {
-            draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query);
+            let target_pos = draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query);
+
+            if mouse_buttons.just_pressed(MouseButton::Left) && target_pos.is_some() {
+                commands.spawn().insert(WantsToUseItem {
+                    entity: target_ctx.item,
+                    target: target_pos,
+                });
+            }
         }
     }
 }
@@ -328,8 +337,11 @@ fn draw_cursor_pos(
     window: &Window,
     mouse_pos: Vec2,
     camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut targeting_tiles_query: Query<(&GlobalTransform, &mut Sprite), With<TargetingTile>>,
-) {
+    mut targeting_tiles_query: Query<
+        (&GlobalTransform, &mut Sprite, &Position),
+        With<TargetingTile>,
+    >,
+) -> Option<Position> {
     let (camera, camera_transform) = camera_query.single();
     // get the size of the window
     let window_size = Vec2::new(window.width() as f32, window.height() as f32);
@@ -346,15 +358,19 @@ fn draw_cursor_pos(
     // reduce it to a 2D value
     let world_pos: Vec2 = world_pos.truncate();
     // cursor is in the screen
-    for (transform, mut sprite) in targeting_tiles_query.iter_mut() {
+    let mut target_position: Option<Position> = None;
+    for (transform, mut sprite, position) in targeting_tiles_query.iter_mut() {
         if transform.translation.x <= world_pos.x
             && transform.translation.x + sprite.custom_size.unwrap().x >= world_pos.x
             && transform.translation.y <= world_pos.y
             && transform.translation.y + sprite.custom_size.unwrap().y >= world_pos.y
         {
             sprite.color = TARGETING_MODE_SELECTION_COLOR;
+            target_position = Some(position.clone());
         } else {
             sprite.color = TARGETING_MODE_TILE_COLOR
         }
     }
+
+    return target_position;
 }

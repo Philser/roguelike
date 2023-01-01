@@ -17,7 +17,7 @@ use crate::{
 
 use super::components::{
     Inventory, InventoryCursor, InventoryError, InventoryUIRoot, InventoryUISlot,
-    InventoryUISlotFrame, WantsToPickupItem,
+    InventoryUISlotFrame, WantsToPickupItem, WantsToUseItem,
 };
 
 const UNKNOWN_ITEM_COLOR: Color = Color::YELLOW;
@@ -76,7 +76,7 @@ pub fn user_input_handler(
     player_stats_query: Query<&mut CombatStats, With<Player>>,
     healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
     healthbar_query: Query<&mut Style, With<HealthBar>>,
-    item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
+    item_query: Query<Option<&Ranged>, With<Item>>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -103,15 +103,8 @@ pub fn user_input_handler(
 
     let mut new_app_state = GameState::RenderInventory;
     if key_press.just_pressed(KeyCode::E) {
-        new_app_state = use_item(
-            &mut commands,
-            &inventory_cursor,
-            &mut inventory,
-            player_stats_query,
-            healthtext_query,
-            healthbar_query,
-            item_query,
-        );
+        new_app_state =
+            schedule_use_item(&mut commands, &inventory_cursor, &mut inventory, item_query);
     }
 
     if key_press.just_pressed(KeyCode::I) || key_press.just_pressed(KeyCode::Escape) {
@@ -374,60 +367,89 @@ fn get_ui_root_bundle() -> NodeBundle {
     }
 }
 
-fn use_item(
-    commands: &mut Commands,
-    inventory_cursor: &InventoryCursor,
-    inventory: &mut Inventory,
-    player_stats_query: Query<&mut CombatStats, With<Player>>,
-    healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
-    healthbar_query: Query<&mut Style, With<HealthBar>>,
+pub fn use_item_handler(
+    mut commands: Commands,
+    mut inventory_query: Query<&mut Inventory>,
+    wants_to_use_item_query: Query<&WantsToUseItem>,
     item_query: Query<(Option<&Heals>, Option<&Consumable>, Option<&Ranged>), With<Item>>,
-) -> GameState {
-    if let Some(item_entity) = &inventory.items[inventory_cursor.cursor_position] {
-        match item_query.get(*item_entity) {
+    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
+    mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
+    mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+) {
+    let mut inventory = inventory_query
+        .get_single_mut()
+        .expect("Could not get single inventory");
+
+    for item in wants_to_use_item_query.iter() {
+        match item_query.get(item.entity) {
             Ok(query) => {
                 if let Some(heals) = query.0 {
-                    use_health_pot(heals, player_stats_query, healthtext_query, healthbar_query);
+                    let player_stats = player_stats_query.get_single_mut().expect("in use_item");
+                    let healthbar = healthbar_query.get_single_mut().expect(
+                        "Found more or less than exactly one Healthbar entity while rendering UI",
+                    );
+                    let healthtext = healthtext_query.get_single_mut().expect(
+                        "Found more or less than exactly one Healthtext entity while rendering UI",
+                    );
+                    use_health_pot(heals, player_stats, healthtext, healthbar);
                 }
 
                 if let Some(_consumable) = query.1 {
-                    commands.entity(*item_entity).despawn();
-                    inventory.remove_item(inventory_cursor.cursor_position);
+                    inventory.remove_item_by_entity(item.entity);
+                    commands.entity(item.entity).despawn();
                 }
 
                 if let Some(ranged) = query.2 {
                     commands.spawn().insert(TargetingModeContext {
+                        item: item.entity,
+                        range: ranged.range,
+                    });
+                }
+            }
+            Err(_) => bevy::log::error!("Unimplemented item behaviour"),
+        }
+    }
+}
+
+fn schedule_use_item(
+    commands: &mut Commands,
+    inventory_cursor: &InventoryCursor,
+    inventory: &mut Inventory,
+    item_query: Query<Option<&Ranged>, With<Item>>,
+) -> GameState {
+    if let Some(item_entity) = &inventory.items[inventory_cursor.cursor_position] {
+        match item_query.get(*item_entity) {
+            Ok(query) => {
+                if let Some(ranged) = query {
+                    commands.spawn().insert(TargetingModeContext {
+                        item: *item_entity,
                         range: ranged.range,
                     });
                     return GameState::Targeting;
+                } else {
+                    commands.spawn().insert(WantsToUseItem {
+                        entity: *item_entity,
+                        target: None,
+                    });
+                    return GameState::PlayerTurn;
                 }
             }
             Err(_) => bevy::log::error!("Unimplemented item behaviour"),
         }
     }
 
-    return GameState::RenderInventory;
+    return GameState::PlayerTurn;
 }
 
 fn use_health_pot(
     health_pot: &Heals,
-    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
-    mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
-    mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+    mut player_stats: Mut<CombatStats>,
+    mut healthtext: Mut<Text>,
+    mut healthbar: Mut<Style>,
 ) {
-    let mut player_stats = player_stats_query.get_single_mut().expect("in use_item");
-
     player_stats.heal(health_pot.heal_amount);
 
-    let mut healthbar = healthbar_query
-        .get_single_mut()
-        .expect("Found more or less than exactly one Healthbar entity while rendering UI");
-
     healthbar.size.width = Val::Px(player_stats.hp as f32 * 3.0);
-
-    let mut healthtext = healthtext_query
-        .get_single_mut()
-        .expect("Found more or less than exactly one Healthtext entity while rendering UI");
 
     // We only care for the first section
     healthtext.sections[0].value = format!("{}/{}", player_stats.hp, player_stats.max_hp);

@@ -1,4 +1,6 @@
 use bevy::prelude::{Component, Entity};
+
+use crate::components::position::Position;
 /// Component that holds a vector of items per item type. Used by the inventory plugin.
 #[derive(Component)]
 pub struct Inventory {
@@ -34,11 +36,18 @@ impl Inventory {
         return Err(InventoryError::InventoryFull);
     }
 
-    /// Removes item on position, if one happens to be there.
-    /// In case of invalid positions or slots that are already empty, nothing happens.
-    pub fn remove_item(&mut self, position: usize) {
-        if self.items.len() > position {
-            self.items[position] = None;
+    pub fn remove_item_by_entity(&mut self, target_entity: Entity) {
+        let mut slot_to_empty: Option<usize> = None;
+        for (slot, item) in self.items.iter().enumerate() {
+            if let Some(item_entity) = item {
+                if *item_entity == target_entity {
+                    slot_to_empty = Some(slot);
+                }
+            }
+        }
+
+        if let Some(slot) = slot_to_empty {
+            self.items[slot] = None
         }
     }
 }
@@ -92,4 +101,11 @@ impl InventoryCursor {
 pub struct WantsToPickupItem {
     pub entity: Entity,
     pub item_name: String,
+}
+
+/// Component that flags an entity that is an item for pickup to inventory.
+#[derive(Component)]
+pub struct WantsToUseItem {
+    pub entity: Entity,
+    pub target: Option<Position>,
 }
