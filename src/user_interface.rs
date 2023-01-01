@@ -249,11 +249,25 @@ fn render_target_mode(
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     game_config: Res<GameConfig>,
-    mouse_buttons: Res<Input<MouseButton>>,
+    mouse_input: Res<Input<MouseButton>>,
+    keyboard_input: Res<Input<KeyCode>>,
 ) {
     let (target_ctx_entity, target_ctx) = target_mode_query
         .get_single()
         .expect("Expected a single TargetModeContext component in render_target_mode");
+
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        finish_targeting_mode(
+            &mut commands,
+            app_state,
+            target_ctx,
+            target_ctx_entity,
+            targeting_tiles_query.p1(),
+            None,
+        );
+        return;
+    }
+
     if targeting_tiles_query.p0().is_empty() {
         // We just entered targeting mode
         let (player_pos, viewshed, _) = viewshed_player_query
@@ -277,26 +291,47 @@ fn render_target_mode(
             let target_pos =
                 draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query.p0());
 
-            // Fire
-            if mouse_buttons.just_pressed(MouseButton::Left) && target_pos.is_some() {
-                commands.spawn().insert(WantsToUseItem {
-                    entity: target_ctx.item,
-                    target: target_pos,
-                });
-
-                // Delete Targeting Tiles
-                let entities: Vec<Entity> = targeting_tiles_query.p1().iter().collect();
-                for entity in entities {
-                    commands.entity(entity).despawn();
-                }
-
-                commands.entity(target_ctx_entity).despawn();
-
-                app_state
-                    .set(GameState::PlayerTurn)
-                    .expect("Setting GameState in targeting mode");
+            if mouse_input.just_pressed(MouseButton::Left) && target_pos.is_some() {
+                finish_targeting_mode(
+                    &mut commands,
+                    app_state,
+                    target_ctx,
+                    target_ctx_entity,
+                    targeting_tiles_query.p1(),
+                    target_pos,
+                );
+                return;
             }
         }
+    }
+
+    fn finish_targeting_mode(
+        commands: &mut Commands,
+        mut app_state: ResMut<State<GameState>>,
+        target_ctx: &TargetingModeContext,
+        target_ctx_entity: Entity,
+        targeting_tiles_entity_query: Query<Entity, With<TargetingTile>>,
+        target_pos: Option<Position>,
+    ) {
+        if target_pos.is_some() {
+            // If we have no target, just exit target mode
+            commands.spawn().insert(WantsToUseItem {
+                entity: target_ctx.item,
+                target: target_pos,
+            });
+        }
+
+        // Delete Targeting Tiles
+        let entities: Vec<Entity> = targeting_tiles_entity_query.iter().collect();
+        for entity in entities {
+            commands.entity(entity).despawn();
+        }
+
+        commands.entity(target_ctx_entity).despawn();
+
+        app_state
+            .set(GameState::PlayerTurn)
+            .expect("Setting GameState in targeting mode");
     }
 }
 
