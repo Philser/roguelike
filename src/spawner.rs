@@ -5,7 +5,7 @@ use crate::{
     components::{
         collidable::Collidable,
         combat_stats::CombatStats,
-        item::{Heals, Item},
+        item::{AreaOfEffect, Heals, Item},
     },
     components::{
         consumable::Consumable,
@@ -105,21 +105,17 @@ pub fn spawn_room(
 
     match try_find_unblocked_position_in_room(room, &blocked_positions, rng) {
         Some(pos) => {
-            let item_rng: u32 = rng.gen_range(0..=1);
+            let item_rng: u32 = rng.gen_range(0..=2);
             match item_rng {
                 0 => spawn_health_pot(
                     commands,
-                    pos.clone(),
+                    &pos,
                     tile_properties,
                     screen_dimensions,
                     gameplay_settings,
                 ),
-                _ => spawn_magic_missle_scroll(
-                    commands,
-                    pos.clone(),
-                    tile_properties,
-                    screen_dimensions,
-                ),
+                1 => spawn_magic_missle_scroll(commands, &pos, tile_properties, screen_dimensions),
+                _ => spawn_fireball(commands, &pos, tile_properties, screen_dimensions),
             }
             blocked_positions.insert(pos);
         }
@@ -182,7 +178,7 @@ pub fn spawn_monster(
 
 pub fn spawn_health_pot(
     commands: &mut Commands,
-    pos: Position,
+    pos: &Position,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
     gameplay_settings: &GameplaySettings,
@@ -198,7 +194,7 @@ pub fn spawn_health_pot(
             },
             transform: Transform {
                 translation: map_pos_to_screen_pos(
-                    &pos,
+                    pos,
                     tile_properties.item_z,
                     tile_properties.tile_size,
                     screen_dimensions,
@@ -228,7 +224,7 @@ pub fn spawn_health_pot(
 
 pub fn spawn_magic_missle_scroll(
     commands: &mut Commands,
-    pos: Position,
+    pos: &Position,
     tile_properties: &TileProperties,
     screen_dimensions: &ScreenDimensions,
 ) {
@@ -243,7 +239,7 @@ pub fn spawn_magic_missle_scroll(
             },
             transform: Transform {
                 translation: map_pos_to_screen_pos(
-                    &pos,
+                    pos,
                     tile_properties.item_z,
                     tile_properties.tile_size,
                     screen_dimensions,
@@ -267,6 +263,51 @@ pub fn spawn_magic_missle_scroll(
         })
         .insert(InflictsDamage { damage: 8 })
         .insert(Ranged { range: 6 })
+        .insert(Consumable {});
+}
+
+pub fn spawn_fireball(
+    commands: &mut Commands,
+    pos: &Position,
+    tile_properties: &TileProperties,
+    screen_dimensions: &ScreenDimensions,
+) {
+    let scaled_tile_size = tile_properties.get_scaled_tile_size();
+    commands
+        .spawn()
+        .insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::rgb_u8(255, 106, 48).into(),
+                custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
+                ..Default::default()
+            },
+            transform: Transform {
+                translation: map_pos_to_screen_pos(
+                    pos,
+                    tile_properties.item_z,
+                    tile_properties.tile_size,
+                    screen_dimensions,
+                ),
+                scale: Vec3::new(
+                    tile_properties.tile_scale,
+                    tile_properties.tile_scale,
+                    tile_properties.item_z,
+                ),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Position {
+            x: pos.x as i32,
+            y: pos.y as i32,
+        })
+        .insert(Item {})
+        .insert(ItemName {
+            name: "Fireball Scroll".to_owned(),
+        })
+        .insert(InflictsDamage { damage: 6 })
+        .insert(Ranged { range: 6 })
+        .insert(AreaOfEffect { radius: 4 })
         .insert(Consumable {});
 }
 

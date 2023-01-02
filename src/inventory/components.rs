@@ -107,5 +107,5 @@ pub struct WantsToPickupItem {
 #[derive(Component)]
 pub struct WantsToUseItem {
     pub entity: Entity,
-    pub target: Option<Position>,
+    pub targets: Option<Vec<Position>>,
 }

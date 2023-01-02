@@ -411,16 +411,18 @@ pub fn use_item_handler(
                     commands.entity(item.entity).despawn();
                 }
 
-                if let Some(target) = item.target.clone() {
+                if let Some(targets) = item.targets.clone() {
                     if let Some(inflicts_damage) = query.2 {
-                        if let Some(entity) = game_map.tile_content.get(&target) {
-                            SufferDamage::add_damage(
-                                &mut damage_tracker,
-                                *entity,
-                                inflicts_damage.damage,
-                                action_log.as_mut(),
-                                true,
-                            );
+                        for target in targets {
+                            if let Some(entity) = game_map.tile_content.get(&target) {
+                                SufferDamage::add_damage(
+                                    &mut damage_tracker,
+                                    *entity,
+                                    inflicts_damage.damage,
+                                    action_log.as_mut(),
+                                    true,
+                                );
+                            }
                         }
                     }
                 }
@@ -450,7 +452,7 @@ fn schedule_use_item(
                 } else {
                     commands.spawn().insert(WantsToUseItem {
                         entity: *item_entity,
-                        target: None,
+                        targets: None,
                     });
                     return GameState::PlayerTurn;
                 }
