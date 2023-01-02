@@ -29,8 +29,6 @@ fn populate_viewshed_player(
     mut map: ResMut<GameMap>,
     mut viewshed_player: Query<(&Position, &mut Viewshed, With<Player>)>,
 ) {
-    let mut fov = FovRecursiveShadowCasting::new();
-
     let (entity_pos, mut viewshed, _) = viewshed_player.single_mut();
     let temp_map = generate_viewshed(entity_pos, &map, viewshed.range as usize, true);
 
@@ -54,8 +52,6 @@ fn populate_viewshed_monsters(
     map: ResMut<GameMap>,
     mut viewshed_monsters: Query<(&Position, &mut Viewshed, With<Monster>)>,
 ) {
-    let mut fov = FovRecursiveShadowCasting::new();
-
     for (entity_pos, mut viewshed, _) in viewshed_monsters.iter_mut() {
         let temp_map = generate_viewshed(entity_pos, &map, viewshed.range as usize, true);
 

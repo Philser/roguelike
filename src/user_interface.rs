@@ -238,7 +238,7 @@ fn render_action_log(
 
 fn render_target_mode(
     mut commands: Commands,
-    mut app_state: ResMut<State<GameState>>,
+    app_state: ResMut<State<GameState>>,
     viewshed_player_query: Query<(&Position, &Viewshed, With<Player>)>,
     target_mode_query: Query<(Entity, &TargetingModeContext)>,
     tiles_query: Query<(&Position, With<Tile>)>,
