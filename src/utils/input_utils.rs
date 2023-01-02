@@ -1,4 +1,4 @@
-use bevy::prelude::{Input, KeyCode, ResMut};
+use bevy::prelude::{Input, KeyCode};
 
 pub struct MovementInput {
     pub x: i32,

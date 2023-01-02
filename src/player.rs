@@ -10,14 +10,13 @@ use crate::{
         user_input::UserInput,
     },
     inventory::components::WantsToPickupItem,
-    map::GameMap,
+    map::game_map::GameMap,
     user_interface::ActionLog,
     utils::{input_utils::get_movement_input, render::map_pos_to_screen_pos},
     viewshed::Viewshed,
-    GameState, PLAYER_Z, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE,
+    GameConfig, GameState,
 };
 
-pub const PLAYER_STARTING_HEALTH: i32 = 100;
 pub const PLAYER_FOV: i32 = 10;
 
 pub const PLAYER_TURN_LABEL: &str = "player_turn";
@@ -43,7 +42,7 @@ fn player_input(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut user_input_res: ResMut<UserInput>,
     mut app_state: ResMut<State<GameState>>,
-    items_query: Query<(Entity, &Position, &Item, Option<&ItemName>)>,
+    items_query: Query<(Entity, &Position, Option<&ItemName>), With<Item>>,
     player_query: Query<&Position, With<Player>>,
     mut commands: Commands,
 ) {
@@ -59,7 +58,7 @@ fn player_input(
             .get_single()
             .expect("Player does not exist or has no position");
 
-        for (entity, item_pos, item, item_name) in items_query.iter() {
+        for (entity, item_pos, item_name) in items_query.iter() {
             if player_pos == item_pos {
                 let name;
                 if item_name.is_none() {
@@ -70,10 +69,10 @@ fn player_input(
 
                 commands.spawn().insert(WantsToPickupItem {
                     entity,
-                    item: item.clone(),
                     item_name: name,
                 });
                 received_input = true;
+                break;
             }
         }
     }
@@ -111,6 +110,7 @@ fn player_turn(
     mut app_state: ResMut<State<GameState>>,
     mut user_input_res: ResMut<UserInput>,
     mut action_log: ResMut<ActionLog>,
+    game_config: Res<GameConfig>,
 ) {
     if let Ok((player_entity, mut player_tf, mut player_pos, mut viewshed, _)) =
         player_query.get_single_mut()
@@ -161,10 +161,9 @@ fn player_turn(
 
                 player_tf.translation = map_pos_to_screen_pos(
                     &player_pos,
-                    PLAYER_Z,
-                    TILE_SIZE,
-                    SCREEN_WIDTH,
-                    SCREEN_HEIGHT,
+                    game_config.tile_properties.player_z,
+                    game_config.tile_properties.tile_size,
+                    &game_config.screen_dimensions,
                 );
 
                 viewshed.dirty = true;

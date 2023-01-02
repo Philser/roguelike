@@ -1,4 +1,5 @@
 mod components;
+mod configs;
 mod damage_system;
 mod inventory;
 mod map;
@@ -13,20 +14,17 @@ use std::collections::HashMap;
 
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, winit::WinitSettings};
 use components::{damage::DamageTracker, user_input::UserInput};
+use configs::game_settings::{
+    GameConfig, GameplaySettings, MapProperties, ScreenDimensions, TileProperties, SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+};
 use damage_system::DamageSystemPlugin;
 use inventory::plugin::InventorySystemPlugin;
-use map::GameMapPlugin;
+use map::plugin::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
 use user_interface::UIPlugin;
 use viewshed::ViewshedPlugin;
-
-const TILE_SIZE: f32 = 16.0;
-const PLAYER_Z: f32 = 5.0;
-const MONSTER_Z: f32 = 5.0;
-const ITEM_Z: f32 = 3.0;
-const SCREEN_HEIGHT: f32 = 720.0;
-const SCREEN_WIDTH: f32 = 1280.0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum GameState {
@@ -35,6 +33,7 @@ pub enum GameState {
     Render,
     AwaitingActionInput,
     PlayerTurn,
+    Targeting,
     MonsterTurn,
 
     SetupInventoryScreen,
@@ -50,6 +49,29 @@ fn main() {
             height: SCREEN_HEIGHT,
             title: "Roguelike".to_owned(),
             ..Default::default()
+        })
+        .insert_resource(GameConfig {
+            tile_properties: TileProperties {
+                tile_scale: 1.0,
+                tile_size: 16.0,
+                item_z: 3.0,
+                monster_z: 5.0,
+                player_z: 5.0,
+            },
+            screen_dimensions: ScreenDimensions {
+                screen_height: SCREEN_HEIGHT,
+                screen_width: SCREEN_WIDTH,
+            },
+            map_properties: MapProperties {
+                map_height: 30,
+                map_width: 60,
+                max_rooms: 10,
+            },
+            gameplay_settings: GameplaySettings {
+                player_starting_health: 100,
+                health_potion_heal_amount: 20,
+                monster_starting_health: 50,
+            },
         })
         .insert_resource(DamageTracker(HashMap::new()))
         .insert_resource(UserInput { x: 0, y: 0 })

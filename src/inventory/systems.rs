@@ -6,18 +6,20 @@ use crate::{
     components::{
         combat_stats::CombatStats,
         consumable::Consumable,
-        item::{Heals, Item, ItemType},
+        damage::{DamageTracker, InflictsDamage, SufferDamage},
+        item::{Heals, Item, Ranged},
         position::Position,
     },
+    map::game_map::GameMap,
     player::Player,
-    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText},
+    user_interface::{ActionLog, ActionLogText, HealthBar, HealthText, TargetingModeContext},
     utils::input_utils::get_movement_input,
     GameState,
 };
 
 use super::components::{
     Inventory, InventoryCursor, InventoryError, InventoryUIRoot, InventoryUISlot,
-    InventoryUISlotFrame, WantsToPickupItem,
+    InventoryUISlotFrame, WantsToPickupItem, WantsToUseItem,
 };
 
 const UNKNOWN_ITEM_COLOR: Color = Color::YELLOW;
@@ -28,6 +30,7 @@ const EMPTY_SLOT_COLOR: Color = Color::GRAY;
 pub fn pickup_handler(
     mut commands: Commands,
     pickup_query: Query<(Entity, &WantsToPickupItem)>,
+    mut visiblity_query: Query<&mut Visibility, With<Item>>,
     mut player_inventory_query: Query<&mut Inventory, With<Player>>,
     mut action_log: ResMut<ActionLog>,
 ) {
@@ -36,14 +39,15 @@ pub fn pickup_handler(
         .expect("We don't have exactly one inventory!!11");
 
     for (pickup_attempt_entity, pickup_attempt) in pickup_query.iter() {
+        match visiblity_query.get_mut(pickup_attempt.entity) {
+            Ok(mut vis) => vis.is_visible = false,
+            Err(e) => bevy::log::error!("{}", e),
+        }
         // remove item from map
-        // commands.entity(pickup_attempt.entity).remove::<Sprite>();
         commands.entity(pickup_attempt.entity).remove::<Transform>();
         commands.entity(pickup_attempt.entity).remove::<Position>();
 
-        if let Err(err) =
-            player_inv.add_item((pickup_attempt.item.item_type.clone(), pickup_attempt.entity))
-        {
+        if let Err(err) = player_inv.add_item(pickup_attempt.entity) {
             if err == InventoryError::InventoryFull {
                 action_log.entries.push("Inventory is full!".to_owned());
                 return;
@@ -62,7 +66,6 @@ pub fn pickup_handler(
 
 /// System processing player input while in the inventory. Responsible for moving the cursor for the selected
 /// item slot, using items and closing the inventory.
-/// // TODO: This gets too large, find a way to split this up
 pub fn user_input_handler(
     mut keyboard_input: ResMut<Input<KeyCode>>,
     mut app_state: ResMut<State<GameState>>,
@@ -70,12 +73,8 @@ pub fn user_input_handler(
     inventory_ui_root_query: Query<Entity, With<InventoryUIRoot>>,
     mut cursor_query: Query<(Entity, &mut InventoryCursor)>,
     mut inventory_query: Query<&mut Inventory>,
-    health_pots_query: Query<&Heals>,
     ui_slots_query: Query<Entity, With<UISlots>>,
-    player_stats_query: Query<&mut CombatStats, With<Player>>,
-    healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
-    healthbar_query: Query<&mut Style, With<HealthBar>>,
-    consumables_query: Query<&Consumable>,
+    item_query: Query<Option<&Ranged>, With<Item>>,
 ) {
     let key_press = keyboard_input.clone();
     if key_press.get_just_pressed().len() == 0 {
@@ -100,36 +99,35 @@ pub fn user_input_handler(
         inventory_cursor.move_cursor(input.y);
     }
 
+    let mut new_app_state = GameState::RenderInventory;
     if key_press.just_pressed(KeyCode::E) {
-        use_item(
-            &mut commands,
-            &inventory_cursor,
-            &mut inventory,
-            health_pots_query,
-            player_stats_query,
-            healthtext_query,
-            healthbar_query,
-            consumables_query,
-        );
+        new_app_state =
+            schedule_use_item(&mut commands, &inventory_cursor, &mut inventory, item_query);
     }
 
     if key_press.just_pressed(KeyCode::I) || key_press.just_pressed(KeyCode::Escape) {
-        let ui_slots_entity = ui_slots_query
-            .get_single()
-            .expect("while querying in user_input_handler");
-        exit_inventory(
-            &mut commands,
-            inventory_ui_root,
-            cursor_entity,
-            ui_slots_entity,
-            &mut app_state,
-        );
-        return;
+        new_app_state = GameState::AwaitingActionInput;
+    }
+
+    match new_app_state {
+        GameState::AwaitingActionInput | GameState::Targeting | GameState::PlayerTurn => {
+            let ui_slots_entity = ui_slots_query
+                .get_single()
+                .expect("while querying in user_input_handler");
+
+            despawn_inventory(
+                &mut commands,
+                inventory_ui_root,
+                cursor_entity,
+                ui_slots_entity,
+            );
+        }
+        _ => {}
     }
 
     app_state
-        .set(GameState::RenderInventory)
-        .expect("failed to set game state in inventory.user_input_handler");
+        .set(new_app_state)
+        .expect("failed to set game state in inventory.use_item");
 }
 
 /// System to create an InventoryCursor object and the UI Entities
@@ -250,7 +248,7 @@ fn render_inventory_slots(
     for (mut color, entity, _, _) in slot_color_query.iter_mut() {
         if let Some(pos) = entity_map.get(&entity) {
             if let Some(item_in_inventory) = &player_inventory.items[*pos] {
-                match item_sprite_query.get(item_in_inventory.1) {
+                match item_sprite_query.get(*item_in_inventory) {
                     Ok(item_sprite) => color.0 = item_sprite.color,
                     Err(e) => {
                         bevy::log::error!("{}", e);
@@ -264,20 +262,15 @@ fn render_inventory_slots(
     }
 }
 
-fn exit_inventory(
+fn despawn_inventory(
     commands: &mut Commands,
     inventory_ui_root: Entity,
     cursor: Entity,
     ui_slots_entity: Entity,
-    app_state: &mut ResMut<State<GameState>>,
 ) {
     commands.entity(inventory_ui_root).despawn_recursive();
     commands.entity(cursor).despawn();
     commands.entity(ui_slots_entity).despawn();
-
-    app_state
-        .set(GameState::AwaitingActionInput)
-        .expect("Couldn't go back to AwaitingActionInput");
 }
 
 pub struct UISlot {
@@ -375,61 +368,109 @@ fn get_ui_root_bundle() -> NodeBundle {
     }
 }
 
-fn use_item(
-    commands: &mut Commands,
-    inventory_cursor: &InventoryCursor,
-    inventory: &mut Inventory,
-    health_pots_query: Query<&Heals>,
-    player_stats_query: Query<&mut CombatStats, With<Player>>,
-    healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
-    healthbar_query: Query<&mut Style, With<HealthBar>>,
-    consumables_query: Query<&Consumable>,
+pub fn use_item_handler(
+    mut commands: Commands,
+    mut inventory_query: Query<&mut Inventory>,
+    wants_to_use_item_query: Query<(Entity, &WantsToUseItem)>,
+    item_query: Query<
+        (
+            Option<&Heals>,
+            Option<&Consumable>,
+            Option<&InflictsDamage>,
+            Option<&Ranged>,
+        ),
+        With<Item>,
+    >,
+    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
+    mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
+    mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+    mut action_log: ResMut<ActionLog>,
+    mut damage_tracker: ResMut<DamageTracker>,
+    game_map: Res<GameMap>,
 ) {
-    if let Some(item) = &inventory.items[inventory_cursor.cursor_position] {
-        let item_entity = item.1;
+    let mut inventory = inventory_query
+        .get_single_mut()
+        .expect("Could not get single inventory");
 
-        match item.0 {
-            ItemType::HealthPotion => {
-                if let Ok(health_pot) = health_pots_query.get(item_entity) {
-                    use_health_pot(
-                        health_pot,
-                        player_stats_query,
-                        healthtext_query,
-                        healthbar_query,
-                    )
-                } else {
-                    // TODO: How to error handle this situation?
+    for (wants_to_use_item_entity, item) in wants_to_use_item_query.iter() {
+        match item_query.get(item.entity) {
+            Ok(query) => {
+                if let Some(heals) = query.0 {
+                    let player_stats = player_stats_query.get_single_mut().expect("in use_item");
+                    let healthbar = healthbar_query.get_single_mut().expect(
+                        "Found more or less than exactly one Healthbar entity while rendering UI",
+                    );
+                    let healthtext = healthtext_query.get_single_mut().expect(
+                        "Found more or less than exactly one Healthtext entity while rendering UI",
+                    );
+                    use_health_pot(heals, player_stats, healthtext, healthbar);
                 }
-            }
-            ItemType::MagicMissileScroll => {}
-        }
 
-        if let Ok(_) = consumables_query.get(item_entity) {
-            inventory.remove_item(inventory_cursor.cursor_position);
-            commands.entity(item_entity).despawn()
+                if let Some(_consumable) = query.1 {
+                    inventory.remove_item_by_entity(item.entity);
+                    commands.entity(item.entity).despawn();
+                }
+
+                if let Some(target) = item.target.clone() {
+                    if let Some(inflicts_damage) = query.2 {
+                        if let Some(entity) = game_map.tile_content.get(&target) {
+                            SufferDamage::add_damage(
+                                &mut damage_tracker,
+                                *entity,
+                                inflicts_damage.damage,
+                                action_log.as_mut(),
+                                true,
+                            );
+                        }
+                    }
+                }
+
+                commands.entity(wants_to_use_item_entity).despawn();
+            }
+            Err(_) => bevy::log::error!("Unimplemented item behaviour"),
         }
     }
 }
 
+fn schedule_use_item(
+    commands: &mut Commands,
+    inventory_cursor: &InventoryCursor,
+    inventory: &mut Inventory,
+    item_query: Query<Option<&Ranged>, With<Item>>,
+) -> GameState {
+    if let Some(item_entity) = &inventory.items[inventory_cursor.cursor_position] {
+        match item_query.get(*item_entity) {
+            Ok(query) => {
+                if let Some(ranged) = query {
+                    commands.spawn().insert(TargetingModeContext {
+                        item: *item_entity,
+                        range: ranged.range,
+                    });
+                    return GameState::Targeting;
+                } else {
+                    commands.spawn().insert(WantsToUseItem {
+                        entity: *item_entity,
+                        target: None,
+                    });
+                    return GameState::PlayerTurn;
+                }
+            }
+            Err(_) => bevy::log::error!("Unimplemented item behaviour"),
+        }
+    }
+
+    return GameState::PlayerTurn;
+}
+
 fn use_health_pot(
     health_pot: &Heals,
-    mut player_stats_query: Query<&mut CombatStats, With<Player>>,
-    mut healthtext_query: Query<&mut Text, (With<HealthText>, Without<ActionLogText>)>,
-    mut healthbar_query: Query<&mut Style, With<HealthBar>>,
+    mut player_stats: Mut<CombatStats>,
+    mut healthtext: Mut<Text>,
+    mut healthbar: Mut<Style>,
 ) {
-    let mut player_stats = player_stats_query.get_single_mut().expect("in use_item");
-
     player_stats.heal(health_pot.heal_amount);
 
-    let mut healthbar = healthbar_query
-        .get_single_mut()
-        .expect("Found more or less than exactly one Healthbar entity while rendering UI");
-
     healthbar.size.width = Val::Px(player_stats.hp as f32 * 3.0);
-
-    let mut healthtext = healthtext_query
-        .get_single_mut()
-        .expect("Found more or less than exactly one Healthtext entity while rendering UI");
 
     // We only care for the first section
     healthtext.sections[0].value = format!("{}/{}", player_stats.hp, player_stats.max_hp);
