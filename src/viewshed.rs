@@ -32,30 +32,7 @@ fn populate_viewshed_player(
     let mut fov = FovRecursiveShadowCasting::new();
 
     let (entity_pos, mut viewshed, _) = viewshed_player.single_mut();
-    let mut temp_map = MapData::new(map.width as usize, map.height as usize);
-
-    // Find all walls within this area in the actual game world
-    for x in 0..temp_map.width {
-        for y in 0..temp_map.height {
-            if let Some(tile) = map.tiles.get(&Position {
-                x: x as i32,
-                y: y as i32,
-            }) {
-                if *tile == TileType::Wall {
-                    temp_map.set_transparent(x, y, false);
-                }
-            }
-        }
-    }
-
-    temp_map.clear_fov();
-    fov.compute_fov(
-        &mut temp_map,
-        entity_pos.x as usize, // Entity is always in the middle of the map
-        entity_pos.y as usize, // Entity is always in the middle of the map
-        viewshed.range as usize,
-        true,
-    );
+    let temp_map = generate_viewshed(entity_pos, &map, viewshed.range as usize, true);
 
     // Now find all the tiles that are visible and translate to real game map
     viewshed.visible_tiles.clear();
@@ -80,30 +57,7 @@ fn populate_viewshed_monsters(
     let mut fov = FovRecursiveShadowCasting::new();
 
     for (entity_pos, mut viewshed, _) in viewshed_monsters.iter_mut() {
-        let mut temp_map = MapData::new(map.width as usize, map.height as usize);
-
-        // Find all walls within this area in the actual game world
-        for x in 0..temp_map.width {
-            for y in 0..temp_map.height {
-                if let Some(tile) = map.tiles.get(&Position {
-                    x: x as i32,
-                    y: y as i32,
-                }) {
-                    if *tile == TileType::Wall {
-                        temp_map.set_transparent(x, y, false);
-                    }
-                }
-            }
-        }
-
-        temp_map.clear_fov();
-        fov.compute_fov(
-            &mut temp_map,
-            entity_pos.x as usize, // Entity is always in the middle of the map
-            entity_pos.y as usize, // Entity is always in the middle of the map
-            viewshed.range as usize,
-            true,
-        );
+        let temp_map = generate_viewshed(entity_pos, &map, viewshed.range as usize, true);
 
         // Now find all the tiles that are visible and translate to real game map
         viewshed.visible_tiles.clear();
@@ -119,6 +73,42 @@ fn populate_viewshed_monsters(
             }
         }
     }
+}
+
+pub fn generate_viewshed(
+    pos: &Position,
+    game_map: &GameMap,
+    radius: usize,
+    walls_are_blocking: bool,
+) -> MapData {
+    let mut fov = FovRecursiveShadowCasting::new();
+
+    let mut temp_map = MapData::new(game_map.width as usize, game_map.height as usize);
+
+    // Find all walls within this area in the actual game world
+    for x in 0..temp_map.width {
+        for y in 0..temp_map.height {
+            if let Some(tile) = game_map.tiles.get(&Position {
+                x: x as i32,
+                y: y as i32,
+            }) {
+                if *tile == TileType::Wall {
+                    temp_map.set_transparent(x, y, false);
+                }
+            }
+        }
+    }
+
+    temp_map.clear_fov();
+    fov.compute_fov(
+        &mut temp_map,
+        pos.x as usize,
+        pos.y as usize,
+        radius,
+        walls_are_blocking,
+    );
+
+    return temp_map;
 }
 
 // TODO: Revisit and figure out why this didnt work because I really think this could save computing power

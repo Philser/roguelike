@@ -3,12 +3,12 @@ use std::collections::HashSet;
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
 use crate::{
-    components::{combat_stats::CombatStats, position::Position},
+    components::{combat_stats::CombatStats, item::AreaOfEffect, position::Position},
     inventory::components::WantsToUseItem,
-    map::{MainCamera, Tile},
+    map::{game_map::GameMap, MainCamera, Tile},
     player::Player,
     utils::render::map_pos_to_screen_pos,
-    viewshed::Viewshed,
+    viewshed::{generate_viewshed, Viewshed},
     GameConfig, GameState, ScreenDimensions, TileProperties,
 };
 
@@ -251,6 +251,8 @@ fn render_target_mode(
     game_config: Res<GameConfig>,
     mouse_input: Res<Input<MouseButton>>,
     keyboard_input: Res<Input<KeyCode>>,
+    aoe_items: Query<&AreaOfEffect>,
+    game_map: Res<GameMap>,
 ) {
     let (target_ctx_entity, target_ctx) = target_mode_query
         .get_single()
@@ -264,6 +266,8 @@ fn render_target_mode(
             target_ctx_entity,
             targeting_tiles_query.p1(),
             None,
+            None,
+            &game_map,
         );
         return;
     }
@@ -287,6 +291,8 @@ fn render_target_mode(
         // We are waiting for the player to pick a target
         let window = windows.get_primary().unwrap();
 
+        let aoe = aoe_items.get(target_ctx.item).ok();
+
         if let Some(mouse_pos) = window.cursor_position() {
             let target_pos =
                 draw_cursor_pos(window, mouse_pos, q_camera, targeting_tiles_query.p0());
@@ -299,6 +305,8 @@ fn render_target_mode(
                     target_ctx_entity,
                     targeting_tiles_query.p1(),
                     target_pos,
+                    aoe,
+                    &game_map,
                 );
                 return;
             }
@@ -312,12 +320,33 @@ fn render_target_mode(
         target_ctx_entity: Entity,
         targeting_tiles_entity_query: Query<Entity, With<TargetingTile>>,
         target_pos: Option<Position>,
+        aoe: Option<&AreaOfEffect>,
+        game_map: &GameMap,
     ) {
-        if target_pos.is_some() {
-            // If we have no target, just exit target mode
+        // If we have no target, just exit target mode
+        if let Some(pos) = target_pos {
+            let mut targets: Vec<Position> = vec![];
+            if aoe.is_some() {
+                // Fetch all targets from area
+                let viewshed = generate_viewshed(&pos, game_map, target_ctx.range as usize, true);
+                for x in 0..viewshed.width {
+                    for y in 0..viewshed.height {
+                        if viewshed.is_in_fov(x, y) {
+                            let pos = Position {
+                                x: x as i32,
+                                y: y as i32,
+                            };
+                            targets.push(pos);
+                        }
+                    }
+                }
+            } else {
+                targets.push(pos)
+            }
+
             commands.spawn().insert(WantsToUseItem {
                 entity: target_ctx.item,
-                target: target_pos,
+                targets: Some(targets),
             });
         }
 

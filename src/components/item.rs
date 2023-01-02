@@ -14,6 +14,11 @@ pub struct Ranged {
     pub range: u32,
 }
 
+#[derive(Component, Debug)]
+pub struct AreaOfEffect {
+    pub radius: u32,
+}
+
 pub const UNKNOWN_ITEM_NAME: &str = "<NOT IMPLEMENTED>";
 #[derive(Component, Debug, Clone)]
 pub struct ItemName {
