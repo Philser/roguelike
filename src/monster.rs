@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use crate::{
     components::position::Position,
-    components::{combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage},
+    components::{
+        combat_stats::CombatStats, damage::DamageTracker, damage::SufferDamage, item::Confusion,
+    },
     configs::game_settings::TileProperties,
     map::game_map::GameMap,
     player::Player,
@@ -30,6 +32,7 @@ impl Plugin for MonsterPlugin {
 pub struct Monster {}
 
 fn monster_ai(
+    mut commands: Commands,
     mut map: ResMut<GameMap>,
     mut damage_tracker: ResMut<DamageTracker>,
     mut app_state: ResMut<State<GameState>>,
@@ -41,6 +44,7 @@ fn monster_ai(
                 &mut Position,
                 &mut Viewshed,
                 &CombatStats,
+                Option<&mut Confusion>,
             ),
             With<Monster>,
         >,
@@ -59,9 +63,25 @@ fn monster_ai(
 
     let action_log_ref = action_log.as_mut();
 
-    for (monster_entity, mut monster_tf, mut monster_pos, mut viewshed, combat_stats) in
-        monsters_and_player_set.p0().iter_mut()
+    for (
+        monster_entity,
+        mut monster_tf,
+        mut monster_pos,
+        mut viewshed,
+        combat_stats,
+        confusion_option,
+    ) in monsters_and_player_set.p0().iter_mut()
     {
+        if let Some(mut confusion) = confusion_option {
+            if confusion.turns > 0 {
+                // Monster is confused, does nothing
+                confusion.turns -= 1;
+                continue;
+            } else {
+                commands.entity(monster_entity).remove::<Confusion>();
+            }
+        }
+
         let mut sees_player = false;
         for viewshed_pos in &viewshed.visible_tiles {
             if player_pos == *viewshed_pos {

@@ -7,7 +7,7 @@ use crate::{
         combat_stats::CombatStats,
         consumable::Consumable,
         damage::{DamageTracker, InflictsDamage, SufferDamage},
-        item::{Heals, Item, Ranged},
+        item::{Confusion, Heals, Item, Ranged},
         position::Position,
     },
     map::game_map::GameMap,
@@ -377,7 +377,7 @@ pub fn use_item_handler(
             Option<&Heals>,
             Option<&Consumable>,
             Option<&InflictsDamage>,
-            Option<&Ranged>,
+            Option<&Confusion>,
         ),
         With<Item>,
     >,
@@ -413,8 +413,8 @@ pub fn use_item_handler(
 
                 if let Some(targets) = item.targets.clone() {
                     if let Some(inflicts_damage) = query.2 {
-                        for target in targets {
-                            if let Some(entity) = game_map.tile_content.get(&target) {
+                        for target in &targets {
+                            if let Some(entity) = game_map.tile_content.get(target) {
                                 SufferDamage::add_damage(
                                     &mut damage_tracker,
                                     *entity,
@@ -422,6 +422,14 @@ pub fn use_item_handler(
                                     action_log.as_mut(),
                                     true,
                                 );
+                            }
+                        }
+                    }
+
+                    if let Some(confusion) = query.3 {
+                        for target in &targets {
+                            if let Some(entity) = game_map.tile_content.get(target) {
+                                commands.entity(*entity).insert(confusion.clone());
                             }
                         }
                     }

@@ -24,3 +24,8 @@ pub const UNKNOWN_ITEM_NAME: &str = "<NOT IMPLEMENTED>";
 pub struct ItemName {
     pub name: String,
 }
+
+#[derive(Component, Debug, Clone)]
+pub struct Confusion {
+    pub turns: u32,
+}
