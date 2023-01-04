@@ -39,6 +39,8 @@ pub enum GameState {
     SetupInventoryScreen,
     RenderInventory,
     AwaitingInventoryInput,
+
+    MainMenu,
 }
 
 fn main() {

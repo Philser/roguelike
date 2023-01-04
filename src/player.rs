@@ -81,6 +81,10 @@ fn player_input(
         app_state
             .set(GameState::SetupInventoryScreen)
             .expect("failed to set game state to InventoryMenu");
+    } else if keyboard_input.just_pressed(KeyCode::Escape) {
+        app_state
+            .set(GameState::MainMenu)
+            .expect("failed to set game state to InventoryMenu");
     } else if received_input {
         user_input_res.x = user_input.x;
         user_input_res.y = user_input.y;
