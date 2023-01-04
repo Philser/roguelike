@@ -323,6 +323,8 @@ fn render_target_mode(
         aoe: Option<&AreaOfEffect>,
         game_map: &GameMap,
     ) {
+        let mut perfomed_action = false;
+
         // If we have no target, just exit target mode
         if let Some(pos) = target_pos {
             let mut targets: Vec<Position> = vec![];
@@ -348,6 +350,7 @@ fn render_target_mode(
                 entity: target_ctx.item,
                 targets: Some(targets),
             });
+            perfomed_action = true;
         }
 
         // Delete Targeting Tiles
@@ -358,8 +361,12 @@ fn render_target_mode(
 
         commands.entity(target_ctx_entity).despawn();
 
+        let mut next_state = GameState::AwaitingActionInput;
+        if perfomed_action {
+            next_state = GameState::PlayerTurn;
+        }
         app_state
-            .set(GameState::PlayerTurn)
+            .set(next_state)
             .expect("Setting GameState in targeting mode");
     }
 }
