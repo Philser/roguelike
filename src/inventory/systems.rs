@@ -291,7 +291,7 @@ fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UIS
             position_type: PositionType::Absolute,
             position: UiRect {
                 left: Val::Px(slot_width_px + 1.0 * gap_size_px),
-                bottom: Val::Px(y * slot_height_px + (y + 1.0) * gap_size_px),
+                bottom: Val::Px(y * slot_height_px + y * gap_size_px),
                 ..Default::default()
             },
             size: Size::new(Val::Px(slot_width_px), Val::Px(slot_height_px)),
@@ -307,7 +307,7 @@ fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UIS
     cursor_entity_comm.with_children(|par| {
         let mut item_slot_comm = par.spawn(NodeBundle {
             style: Style {
-                position_type: PositionType::Relative,
+                position_type: PositionType::Absolute,
                 position: UiRect {
                     left: Val::Percent(5.0),
                     bottom: Val::Percent(5.0),

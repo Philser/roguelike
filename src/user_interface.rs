@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use bevy::{ecs::system::EntityCommands, prelude::*};
+use ron::de;
 
 use crate::{
     components::{combat_stats::CombatStats, item::AreaOfEffect, position::Position},
@@ -12,7 +13,7 @@ use crate::{
     GameConfig, GameState, ScreenDimensions, TileProperties,
 };
 
-const ACTION_LOG_MAX_LINES: usize = 7;
+const ACTION_LOG_MAX_LINES: usize = 6;
 
 const TARGETING_MODE_TILE_COLOR: Color = Color::rgba(242.0, 36.0, 139.0, 0.05);
 
@@ -74,6 +75,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, game_config: Re
         style: Style {
             justify_content: JustifyContent::SpaceBetween,
             size: Size::new(Val::Percent(100.0), Val::Percent(20.0)),
+            position: UiRect {
+                top: Val::Percent(80.0),
+                ..default()
+            },
             ..default()
         },
         background_color: Color::PURPLE.into(),
@@ -310,63 +315,63 @@ fn render_target_mode(
             }
         }
     }
+}
 
-    fn finish_targeting_mode(
-        commands: &mut Commands,
-        mut app_state: ResMut<State<GameState>>,
-        target_ctx: &TargetingModeContext,
-        target_ctx_entity: Entity,
-        targeting_tiles_entity_query: Query<Entity, With<TargetingTile>>,
-        target_pos: Option<Position>,
-        aoe: Option<&AreaOfEffect>,
-        game_map: &GameMap,
-    ) {
-        let mut perfomed_action = false;
+fn finish_targeting_mode(
+    commands: &mut Commands,
+    mut app_state: ResMut<State<GameState>>,
+    target_ctx: &TargetingModeContext,
+    target_ctx_entity: Entity,
+    targeting_tiles_entity_query: Query<Entity, With<TargetingTile>>,
+    target_pos: Option<Position>,
+    aoe: Option<&AreaOfEffect>,
+    game_map: &GameMap,
+) {
+    let mut perfomed_action = false;
 
-        // If we have no target, just exit target mode
-        if let Some(pos) = target_pos {
-            let mut targets: Vec<Position> = vec![];
-            if aoe.is_some() {
-                // Fetch all targets from area
-                let viewshed = generate_viewshed(&pos, game_map, target_ctx.range as usize, true);
-                for x in 0..viewshed.width {
-                    for y in 0..viewshed.height {
-                        if viewshed.is_in_fov(x, y) {
-                            let pos = Position {
-                                x: x as i32,
-                                y: y as i32,
-                            };
-                            targets.push(pos);
-                        }
+    // If we have no target, just exit target mode
+    if let Some(pos) = target_pos {
+        let mut targets: Vec<Position> = vec![];
+        if aoe.is_some() {
+            // Fetch all targets from area
+            let viewshed = generate_viewshed(&pos, game_map, target_ctx.range as usize, true);
+            for x in 0..viewshed.width {
+                for y in 0..viewshed.height {
+                    if viewshed.is_in_fov(x, y) {
+                        let pos = Position {
+                            x: x as i32,
+                            y: y as i32,
+                        };
+                        targets.push(pos);
                     }
                 }
-            } else {
-                targets.push(pos)
             }
-
-            commands.spawn_empty().insert(WantsToUseItem {
-                entity: target_ctx.item,
-                targets: Some(targets),
-            });
-            perfomed_action = true;
+        } else {
+            targets.push(pos)
         }
 
-        // Delete Targeting Tiles
-        let entities: Vec<Entity> = targeting_tiles_entity_query.iter().collect();
-        for entity in entities {
-            commands.entity(entity).despawn();
-        }
-
-        commands.entity(target_ctx_entity).despawn();
-
-        let mut next_state = GameState::AwaitingActionInput;
-        if perfomed_action {
-            next_state = GameState::PlayerTurn;
-        }
-        app_state
-            .set(next_state)
-            .expect("Setting GameState in targeting mode");
+        commands.spawn_empty().insert(WantsToUseItem {
+            entity: target_ctx.item,
+            targets: Some(targets),
+        });
+        perfomed_action = true;
     }
+
+    // Delete Targeting Tiles
+    let entities: Vec<Entity> = targeting_tiles_entity_query.iter().collect();
+    for entity in entities {
+        commands.entity(entity).despawn();
+    }
+
+    commands.entity(target_ctx_entity).despawn();
+
+    let mut next_state = GameState::AwaitingActionInput;
+    if perfomed_action {
+        next_state = GameState::PlayerTurn;
+    }
+    app_state
+        .set(next_state)
+        .expect("Setting GameState in targeting mode");
 }
 
 fn create_targeting_tiles(
