@@ -104,7 +104,6 @@ fn spawn_health_bar(
                         top: Val::Percent(25.0),
                         ..default()
                     },
-                    justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
                 color: Color::RED.into(),

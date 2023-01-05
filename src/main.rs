@@ -2,6 +2,7 @@ mod components;
 mod configs;
 mod damage_system;
 mod inventory;
+mod main_menu;
 mod map;
 mod monster;
 mod player;
@@ -20,6 +21,7 @@ use configs::game_settings::{
 };
 use damage_system::DamageSystemPlugin;
 use inventory::plugin::InventorySystemPlugin;
+use main_menu::MainMenuPlugin;
 use map::plugin::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
@@ -88,5 +90,6 @@ fn main() {
         .add_plugin(MonsterPlugin {})
         .add_plugin(DamageSystemPlugin {})
         .add_plugin(InventorySystemPlugin {})
+        .add_plugin(MainMenuPlugin {})
         .run();
 }
