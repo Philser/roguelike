@@ -19,23 +19,23 @@ pub fn spawn_map_tiles(
         match tile {
             TileType::Floor => {
                 material = material_assets
-                    .get(materials.floor.clone())
+                    .get(&materials.floor)
                     .expect("missing floor material in ColorMaterial assets")
                     .clone()
             }
             TileType::Wall => {
                 material = material_assets
-                    .get(materials.wall.clone())
+                    .get(&materials.wall)
                     .expect("missing wall material in ColorMaterial assets")
                     .clone()
             }
         };
 
-        let mut entity = commands.spawn();
+        let mut entity = commands.spawn_empty();
         let scaled_tile_size =
             game_config.tile_properties.tile_size * game_config.tile_properties.tile_scale;
         entity
-            .insert_bundle(SpriteBundle {
+            .insert(SpriteBundle {
                 sprite: Sprite {
                     color: material.color,
                     custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
@@ -63,6 +63,6 @@ pub fn spawn_map_tiles(
     }
 
     app_state
-        .set(GameState::Render)
+        .overwrite_set(GameState::Render)
         .expect("failed to set game state after spawning tiles");
 }

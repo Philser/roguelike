@@ -67,7 +67,7 @@ fn player_input(
                     name = item_name.unwrap().name.clone()
                 }
 
-                commands.spawn().insert(WantsToPickupItem {
+                commands.spawn_empty().insert(WantsToPickupItem {
                     entity,
                     item_name: name,
                 });

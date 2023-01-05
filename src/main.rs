@@ -48,12 +48,12 @@ pub enum GameState {
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(WindowDescriptor {
-            width: SCREEN_WIDTH,
-            height: SCREEN_HEIGHT,
-            title: "Roguelike".to_owned(),
-            ..Default::default()
-        })
+        // .insert_resource(WindowDescriptor {
+        //     width: SCREEN_WIDTH,
+        //     height: SCREEN_HEIGHT,
+        //     title: "Roguelike".to_owned(),
+        //     ..Default::default()
+        // })
         .insert_resource(GameConfig {
             tile_properties: TileProperties {
                 tile_scale: 1.0,

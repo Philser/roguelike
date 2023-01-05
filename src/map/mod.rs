@@ -1,21 +1,21 @@
 use bevy::{
-    prelude::{Component, Handle},
+    prelude::{Component, Handle, Resource},
     sprite::ColorMaterial,
 };
 
-mod generate_map_system;
 pub mod game_map;
+mod generate_map_system;
 pub mod plugin;
 mod render_map_system;
 mod spawn_map_tiles_system;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum TileType {
     Wall,
     Floor,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Resource, Debug, Default)]
 pub struct MaterialHandles {
     pub player: Handle<ColorMaterial>,
     pub wall: Handle<ColorMaterial>,

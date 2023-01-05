@@ -17,7 +17,7 @@ const ACTION_LOG_MAX_LINES: usize = 7;
 const TARGETING_MODE_TILE_COLOR: Color = Color::rgba(242.0, 36.0, 139.0, 0.05);
 
 const TARGETING_MODE_SELECTION_COLOR: Color = Color::BEIGE;
-#[derive(Clone)]
+#[derive(Clone, Resource, Default, Debug)]
 pub struct ActionLog {
     pub entries: Vec<String>,
 }
@@ -59,11 +59,10 @@ pub struct TargetingModeContext {
 #[derive(Component)]
 pub struct TargetingTile {}
 
+#[derive(Resource)]
 pub struct UIFont(Handle<Font>);
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, game_config: Res<GameConfig>) {
-    commands.spawn_bundle(UiCameraBundle::default());
-
     let font_handle: Handle<Font> = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
     commands.insert_resource(UIFont(font_handle.clone()));
 
@@ -71,13 +70,13 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, game_config: Re
         entries: vec!["Adventure awaits!".to_owned()],
     });
 
-    let mut commands_builder = commands.spawn_bundle(NodeBundle {
+    let mut commands_builder = commands.spawn(NodeBundle {
         style: Style {
             justify_content: JustifyContent::SpaceBetween,
             size: Size::new(Val::Percent(100.0), Val::Percent(20.0)),
             ..default()
         },
-        color: Color::PURPLE.into(),
+        background_color: Color::PURPLE.into(),
         ..default()
     });
 
@@ -97,36 +96,35 @@ fn spawn_health_bar(
 ) {
     commands.with_children(|parent| {
         parent
-            .spawn_bundle(NodeBundle {
+            .spawn(NodeBundle {
                 style: Style {
                     size: Size::new(Val::Px(player_starting_health * 3.0), Val::Percent(10.0)),
                     position_type: PositionType::Absolute,
-                    position: Rect {
+                    position: UiRect {
                         left: Val::Percent(50.0),
                         top: Val::Percent(25.0),
                         ..default()
                     },
                     ..default()
                 },
-                color: Color::RED.into(),
+                background_color: Color::RED.into(),
                 ..default()
             })
             .insert(HealthBar {})
             .with_children(|parent| {
                 parent
-                    .spawn_bundle(TextBundle {
+                    .spawn(TextBundle {
                         style: Style {
-                            margin: Rect::all(Val::Px(5.0)),
+                            margin: UiRect::all(Val::Px(5.0)),
                             ..default()
                         },
-                        text: Text::with_section(
+                        text: Text::from_section(
                             format!("{}/{}", player_starting_health, player_starting_health),
                             TextStyle {
                                 font: text_font,
                                 font_size: 27.0,
                                 color: Color::WHITE,
                             },
-                            Default::default(),
                         ),
                         ..default()
                     })
@@ -138,20 +136,20 @@ fn spawn_health_bar(
 fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) {
     commands.with_children(|parent| {
         parent
-            .spawn_bundle(NodeBundle {
+            .spawn(NodeBundle {
                 style: Style {
                     flex_direction: FlexDirection::ColumnReverse,
                     size: Size::new(Val::Percent(40.0), Val::Percent(100.0)),
                     ..default()
                 },
-                color: Color::rgb(0.8, 0.8, 1.0).into(),
+                background_color: Color::rgb(0.8, 0.8, 1.0).into(),
                 ..default()
             })
             .with_children(|parent| {
                 parent
-                    .spawn_bundle(TextBundle {
+                    .spawn(TextBundle {
                         style: Style {
-                            margin: Rect {
+                            margin: UiRect {
                                 left: Val::Percent(1.0),
                                 right: Val::Percent(1.0),
                                 bottom: Val::Percent(1.0),
@@ -160,14 +158,13 @@ fn spawn_action_log(commands: &mut EntityCommands, text_font: Handle<Font>) {
                             size: Size::new(Val::Px(300.0), Val::Px(400.0)),
                             ..default()
                         },
-                        text: Text::with_section(
+                        text: Text::from_section(
                             "",
                             TextStyle {
                                 font: text_font,
                                 font_size: 23.0,
                                 color: Color::WHITE,
                             },
-                            Default::default(),
                         ),
                         ..default()
                     })
@@ -347,7 +344,7 @@ fn render_target_mode(
                 targets.push(pos)
             }
 
-            commands.spawn().insert(WantsToUseItem {
+            commands.spawn_empty().insert(WantsToUseItem {
                 entity: target_ctx.item,
                 targets: Some(targets),
             });
@@ -394,8 +391,8 @@ fn create_targeting_tiles(
     for (pos, _) in tiles_query.iter() {
         if pos_in_range.contains(pos) {
             commands
-                .spawn()
-                .insert_bundle(SpriteBundle {
+                .spawn_empty()
+                .insert(SpriteBundle {
                     sprite: Sprite {
                         color: TARGETING_MODE_TILE_COLOR,
                         custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
@@ -440,7 +437,7 @@ fn draw_cursor_pos(
     let ndc = (mouse_pos / window_size) * 2.0 - Vec2::ONE;
 
     // matrix for undoing the projection and camera transform
-    let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
+    let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
 
     // use it to convert ndc to world-space coordinates
     let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
@@ -450,10 +447,10 @@ fn draw_cursor_pos(
     // cursor is in the screen
     let mut target_position: Option<Position> = None;
     for (transform, mut sprite, position) in targeting_tiles_query.iter_mut() {
-        if transform.translation.x <= world_pos.x
-            && transform.translation.x + sprite.custom_size.unwrap().x >= world_pos.x
-            && transform.translation.y <= world_pos.y
-            && transform.translation.y + sprite.custom_size.unwrap().y >= world_pos.y
+        if transform.translation().x <= world_pos.x
+            && transform.translation().x + sprite.custom_size.unwrap().x >= world_pos.x
+            && transform.translation().y <= world_pos.y
+            && transform.translation().y + sprite.custom_size.unwrap().y >= world_pos.y
         {
             sprite.color = TARGETING_MODE_SELECTION_COLOR;
             target_position = Some(position.clone());

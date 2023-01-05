@@ -1,11 +1,11 @@
 use bevy::{
     prelude::{
         App, AssetServer, BuildChildren, Color, Commands, Component, DespawnRecursiveExt, Entity,
-        GlobalTransform, Input, KeyCode, NodeBundle, Plugin, Query, Rect, Res, ResMut, Size, State,
-        SystemSet, TextBundle, Transform, Vec3, With,
+        Input, KeyCode, NodeBundle, Plugin, Query, Res, ResMut, Size, State, SystemSet, TextBundle,
+        With,
     },
     text::{Text, TextStyle},
-    ui::{PositionType, Style, Val},
+    ui::{PositionType, Style, UiRect, Val},
 };
 
 use crate::{configs::game_settings::GameConfig, GameState};
@@ -38,7 +38,7 @@ fn generate_main_menu(
     let menu_points = vec!["New Game", "Save", "Load", "Quit"];
     let text_font = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(
                     Val::Px(game_config.screen_dimensions.screen_width),
@@ -47,37 +47,36 @@ fn generate_main_menu(
                 position_type: PositionType::Absolute,
                 ..Default::default()
             },
-            color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
+            background_color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
             ..Default::default()
         })
         .insert(MainMenuUI {})
         .with_children(|parent| {
             for (i, point) in menu_points.iter().enumerate() {
                 parent
-                    .spawn_bundle(NodeBundle {
+                    .spawn(NodeBundle {
                         style: Style {
                             size: Size::new(Val::Percent(33.3), Val::Percent(10.0)),
                             position_type: PositionType::Absolute,
-                            position: Rect {
+                            position: UiRect {
                                 bottom: Val::Percent((menu_points.len() - i) as f32 * 20.0),
                                 left: Val::Percent(33.3),
                                 ..Default::default()
                             },
                             ..Default::default()
                         },
-                        color: Color::PINK.into(),
+                        background_color: Color::PINK.into(),
                         ..Default::default()
                     })
                     .with_children(|parent| {
-                        parent.spawn_bundle(TextBundle {
-                            text: Text::with_section(
+                        parent.spawn(TextBundle {
+                            text: Text::from_section(
                                 *point,
                                 TextStyle {
                                     font: text_font.clone(),
                                     font_size: 27.0,
                                     color: Color::WHITE,
                                 },
-                                Default::default(),
                             ),
                             ..Default::default()
                         });
