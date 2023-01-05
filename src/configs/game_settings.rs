@@ -1,3 +1,6 @@
+use bevy::prelude::Resource;
+
+#[derive(Resource, Default, Debug)]
 pub struct GameConfig {
     pub tile_properties: TileProperties,
     pub screen_dimensions: ScreenDimensions,
@@ -8,11 +11,13 @@ pub struct GameConfig {
 pub const SCREEN_HEIGHT: f32 = 720.0;
 pub const SCREEN_WIDTH: f32 = 1280.0;
 
+#[derive(Default, Debug)]
 pub struct ScreenDimensions {
     pub screen_height: f32,
     pub screen_width: f32,
 }
 
+#[derive(Default, Debug)]
 pub struct TileProperties {
     pub tile_size: f32,
     pub tile_scale: f32,
@@ -27,12 +32,14 @@ impl TileProperties {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct MapProperties {
     pub map_height: i32,
     pub map_width: i32,
     pub max_rooms: u32,
 }
 
+#[derive(Default, Debug)]
 pub struct GameplaySettings {
     pub player_starting_health: i32,
     pub health_potion_heal_amount: i32,

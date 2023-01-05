@@ -8,6 +8,7 @@ use super::TileType;
 /// A structure representing the game world as a collection of points.
 /// The upper left corner is at `Position` (0, 0), the lower right corner
 /// is at (width - 1, height - 1).
+#[derive(Resource, Default, Debug)]
 pub struct GameMap {
     /// Height in
     pub height: i32,

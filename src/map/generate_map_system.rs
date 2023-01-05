@@ -25,7 +25,7 @@ pub fn generate_map(
     game_config: Res<GameConfig>,
 ) {
     commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .spawn(Camera2dBundle::default())
         .insert(MainCamera {});
 
     let material_handles = MaterialHandles {
@@ -49,9 +49,9 @@ pub fn generate_map(
     );
 
     commands.insert_resource(map);
-
+    bevy::log::info!("{:?}", app_state.current());
     app_state
-        .set(GameState::MapLoaded)
+        .overwrite_set(GameState::MapLoaded)
         .expect("failed to set game state in map.setup()");
 }
 

@@ -141,10 +141,10 @@ pub fn inventory_setup(
         .expect("while retrieving single player inventory");
 
     commands
-        .spawn()
+        .spawn_empty()
         .insert(InventoryCursor::new(0, player_inventory.inventory_size));
 
-    let mut commands_builder = commands.spawn_bundle(get_ui_root_bundle());
+    let mut commands_builder = commands.spawn(get_ui_root_bundle());
     commands_builder.insert(InventoryUIRoot {});
 
     let mut ui_slots = UISlots { slots: vec![] };
@@ -152,7 +152,7 @@ pub fn inventory_setup(
         ui_slots = build_ui_slots(parent, player_inventory);
     });
 
-    commands.spawn().insert(ui_slots);
+    commands.spawn_empty().insert(ui_slots);
 
     app_state
         .set(GameState::RenderInventory)
@@ -168,13 +168,13 @@ pub fn inventory_renderer(
     ui_slots_query: Query<&UISlots>,
     item_sprite_query: Query<&Sprite, With<Item>>,
     slot_color_query: Query<(
-        &mut UiColor,
+        &mut BackgroundColor,
         Entity,
         With<InventoryUISlot>,
         Without<InventoryUISlotFrame>,
     )>,
     cursor_color_query: Query<(
-        &mut UiColor,
+        &mut BackgroundColor,
         Entity,
         With<InventoryUISlotFrame>,
         Without<InventoryUISlot>,
@@ -207,7 +207,7 @@ fn render_cursor(
     ui_slots: &UISlots,
     cursor: &InventoryCursor,
     mut cursor_color_query: Query<(
-        &mut UiColor,
+        &mut BackgroundColor,
         Entity,
         With<InventoryUISlotFrame>,
         Without<InventoryUISlot>,
@@ -233,7 +233,7 @@ fn render_inventory_slots(
     ui_slots: &UISlots,
     player_inventory: &Inventory,
     mut slot_color_query: Query<(
-        &mut UiColor,
+        &mut BackgroundColor,
         Entity,
         With<InventoryUISlot>,
         Without<InventoryUISlotFrame>,
@@ -286,18 +286,18 @@ fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UIS
     let gap_size_px = 15.0;
 
     // Spawn cursor frame, surrounding item frame
-    let mut cursor_entity_comm = parent.spawn_bundle(NodeBundle {
+    let mut cursor_entity_comm = parent.spawn(NodeBundle {
         style: Style {
             position_type: PositionType::Absolute,
-            position: Rect {
+            position: UiRect {
                 left: Val::Px(slot_width_px + 1.0 * gap_size_px),
-                bottom: Val::Px(y * slot_height_px + (y + 1.0) * gap_size_px),
+                bottom: Val::Px(y * slot_height_px + y * gap_size_px),
                 ..Default::default()
             },
             size: Size::new(Val::Px(slot_width_px), Val::Px(slot_height_px)),
             ..default()
         },
-        color: Color::WHITE.into(),
+        background_color: Color::WHITE.into(),
         ..default()
     });
     cursor_entity_comm.insert(InventoryUISlotFrame {});
@@ -305,10 +305,10 @@ fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UIS
     // Spawn item frame
     let mut item_slot = Entity::from_raw(0);
     cursor_entity_comm.with_children(|par| {
-        let mut item_slot_comm = par.spawn_bundle(NodeBundle {
+        let mut item_slot_comm = par.spawn(NodeBundle {
             style: Style {
-                position_type: PositionType::Relative,
-                position: Rect {
+                position_type: PositionType::Absolute,
+                position: UiRect {
                     left: Val::Percent(5.0),
                     bottom: Val::Percent(5.0),
                     ..Default::default()
@@ -316,7 +316,7 @@ fn build_ui_slot(parent: &mut ChildBuilder, y: f32, inventory_pos: usize) -> UIS
                 size: Size::new(Val::Percent(90.0), Val::Percent(90.0)),
                 ..default()
             },
-            color: EMPTY_SLOT_COLOR.into(),
+            background_color: EMPTY_SLOT_COLOR.into(),
             ..default()
         });
         item_slot_comm.insert(InventoryUISlot {});
@@ -355,7 +355,7 @@ fn get_ui_root_bundle() -> NodeBundle {
             // TODO: Use Val::Px
             size: Size::new(Val::Percent(40.0), Val::Percent(45.0)),
             position_type: PositionType::Absolute,
-            position: Rect {
+            position: UiRect {
                 left: Val::Percent(30.0),
                 right: Val::Percent(30.0),
                 top: Val::Percent(30.0),
@@ -363,7 +363,7 @@ fn get_ui_root_bundle() -> NodeBundle {
             },
             ..default()
         },
-        color: Color::PURPLE.into(),
+        background_color: Color::PURPLE.into(),
         ..default()
     }
 }
@@ -452,13 +452,13 @@ fn schedule_use_item(
         match item_query.get(*item_entity) {
             Ok(query) => {
                 if let Some(ranged) = query {
-                    commands.spawn().insert(TargetingModeContext {
+                    commands.spawn_empty().insert(TargetingModeContext {
                         item: *item_entity,
                         range: ranged.range,
                     });
                     return GameState::Targeting;
                 } else {
-                    commands.spawn().insert(WantsToUseItem {
+                    commands.spawn_empty().insert(WantsToUseItem {
                         entity: *item_entity,
                         targets: None,
                     });

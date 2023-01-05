@@ -11,9 +11,10 @@ use bevy::prelude::*;
 
 use crate::user_interface::ActionLog;
 
-#[derive(Default)]
+#[derive(Default, Resource, Debug)]
 pub struct DamageTracker(pub HashMap<Entity, SufferDamage>);
 
+#[derive(Debug)]
 pub struct SufferDamage {
     pub amount: Vec<i32>,
 }

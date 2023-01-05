@@ -78,7 +78,7 @@ fn render_tiles(
         }
 
         let color = material_assets
-            .get(material_handler)
+            .get(&material_handler)
             .expect("missing asset for floor tile")
             .color;
         sprite.color = color;

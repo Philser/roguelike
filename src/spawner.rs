@@ -34,8 +34,8 @@ pub fn spawn_player(
 ) {
     let scaled_tilesize = tile_properties.get_scaled_tile_size();
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn_empty()
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(0, 163, 204).into(),
                 custom_size: Some(Vec2::new(scaled_tilesize, scaled_tilesize)),
@@ -135,8 +135,8 @@ pub fn spawn_monster(
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn_empty()
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(204, 41, 0).into(),
                 custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
@@ -186,8 +186,8 @@ pub fn spawn_health_pot(
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn_empty()
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(34, 139, 34).into(),
                 custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
@@ -231,8 +231,8 @@ pub fn spawn_magic_missle_scroll(
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn_empty()
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(227, 23, 224).into(),
                 custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
@@ -275,8 +275,8 @@ pub fn spawn_fireball_scroll(
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn_empty()
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(255, 106, 48).into(),
                 custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),
@@ -320,8 +320,8 @@ pub fn spawn_confusion_scroll(
 ) {
     let scaled_tile_size = tile_properties.get_scaled_tile_size();
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn_empty()
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb_u8(66, 164, 245).into(),
                 custom_size: Some(Vec2::new(scaled_tile_size, scaled_tile_size)),

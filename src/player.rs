@@ -67,7 +67,7 @@ fn player_input(
                     name = item_name.unwrap().name.clone()
                 }
 
-                commands.spawn().insert(WantsToPickupItem {
+                commands.spawn_empty().insert(WantsToPickupItem {
                     entity,
                     item_name: name,
                 });
@@ -80,6 +80,10 @@ fn player_input(
     if keyboard_input.just_pressed(KeyCode::I) {
         app_state
             .set(GameState::SetupInventoryScreen)
+            .expect("failed to set game state to InventoryMenu");
+    } else if keyboard_input.just_pressed(KeyCode::Escape) {
+        app_state
+            .push(GameState::MainMenu)
             .expect("failed to set game state to InventoryMenu");
     } else if received_input {
         user_input_res.x = user_input.x;

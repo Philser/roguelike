@@ -2,6 +2,7 @@ mod components;
 mod configs;
 mod damage_system;
 mod inventory;
+mod main_menu;
 mod map;
 mod monster;
 mod player;
@@ -20,6 +21,7 @@ use configs::game_settings::{
 };
 use damage_system::DamageSystemPlugin;
 use inventory::plugin::InventorySystemPlugin;
+use main_menu::MainMenuPlugin;
 use map::plugin::GameMapPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
@@ -39,17 +41,19 @@ pub enum GameState {
     SetupInventoryScreen,
     RenderInventory,
     AwaitingInventoryInput,
+
+    MainMenu,
 }
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(WindowDescriptor {
-            width: SCREEN_WIDTH,
-            height: SCREEN_HEIGHT,
-            title: "Roguelike".to_owned(),
-            ..Default::default()
-        })
+        // .insert_resource(WindowDescriptor {
+        //     width: SCREEN_WIDTH,
+        //     height: SCREEN_HEIGHT,
+        //     title: "Roguelike".to_owned(),
+        //     ..Default::default()
+        // })
         .insert_resource(GameConfig {
             tile_properties: TileProperties {
                 tile_scale: 1.0,
@@ -86,5 +90,6 @@ fn main() {
         .add_plugin(MonsterPlugin {})
         .add_plugin(DamageSystemPlugin {})
         .add_plugin(InventorySystemPlugin {})
+        .add_plugin(MainMenuPlugin {})
         .run();
 }

@@ -63,7 +63,7 @@ fn collect_dead(
                 .get_single()
                 .expect("Found 0 or more than one player in collect_dead");
 
-            let text = if player.id() == entity.id() {
+            let text = if player == entity {
                 "You died!"
             } else {
                 "Monster died"
