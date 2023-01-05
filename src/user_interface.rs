@@ -80,11 +80,13 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, game_config: Re
         color: Color::PURPLE.into(),
         ..default()
     });
+
     spawn_health_bar(
         &mut commands_builder,
         font_handle.clone(),
         game_config.gameplay_settings.player_starting_health as f32,
     );
+
     spawn_action_log(&mut commands_builder, font_handle);
 }
 

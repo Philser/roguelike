@@ -1,8 +1,10 @@
 use bevy::{
     prelude::{
-        App, Color, Commands, Component, Entity, GlobalTransform, Input, KeyCode, NodeBundle,
-        Plugin, Query, Rect, Res, ResMut, Size, State, SystemSet, Transform, Vec3, With,
+        App, AssetServer, BuildChildren, Color, Commands, Component, DespawnRecursiveExt, Entity,
+        GlobalTransform, Input, KeyCode, NodeBundle, Plugin, Query, Rect, Res, ResMut, Size, State,
+        SystemSet, TextBundle, Transform, Vec3, With,
     },
+    text::{Text, TextStyle},
     ui::{PositionType, Style, Val},
 };
 
@@ -28,7 +30,13 @@ impl Plugin for MainMenuPlugin {
 #[derive(Component)]
 pub struct MainMenuUI {}
 
-fn generate_main_menu(mut commands: Commands, game_config: Res<GameConfig>) {
+fn generate_main_menu(
+    mut commands: Commands,
+    game_config: Res<GameConfig>,
+    asset_server: Res<AssetServer>,
+) {
+    let menu_points = vec!["New Game", "Save", "Load", "Quit"];
+    let text_font = asset_server.load("fonts/EduVICWANTBeginner-Regular.ttf");
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -37,26 +45,45 @@ fn generate_main_menu(mut commands: Commands, game_config: Res<GameConfig>) {
                     Val::Px(game_config.screen_dimensions.screen_height),
                 ),
                 position_type: PositionType::Absolute,
-                // position: Rect {
-                //     left: Val::Px(0.0),
-                //     top: Val::Px(0.0),
-                //     right: Val::Px(game_config.screen_dimensions.screen_width),
-                //     bottom: Val::Px(game_config.screen_dimensions.screen_height),
-                // },
-                ..Default::default()
-            },
-            global_transform: GlobalTransform {
-                translation: Vec3::new(0.0, 0.0, 100.0),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: Vec3::new(0.0, 0.0, 100.0),
                 ..Default::default()
             },
             color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
             ..Default::default()
         })
-        .insert(MainMenuUI {});
+        .insert(MainMenuUI {})
+        .with_children(|parent| {
+            for (i, point) in menu_points.iter().enumerate() {
+                parent
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            size: Size::new(Val::Percent(33.3), Val::Percent(10.0)),
+                            position_type: PositionType::Absolute,
+                            position: Rect {
+                                bottom: Val::Percent((menu_points.len() - i) as f32 * 20.0),
+                                left: Val::Percent(33.3),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                        color: Color::PINK.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn_bundle(TextBundle {
+                            text: Text::with_section(
+                                *point,
+                                TextStyle {
+                                    font: text_font.clone(),
+                                    font_size: 27.0,
+                                    color: Color::WHITE,
+                                },
+                                Default::default(),
+                            ),
+                            ..Default::default()
+                        });
+                    });
+            }
+        });
 }
 
 fn main_menu_system(
@@ -69,7 +96,7 @@ fn main_menu_system(
         let main_menu = main_menu_ui
             .get_single()
             .expect("Fetching the main menu UI");
-        commands.entity(main_menu).despawn();
+        commands.entity(main_menu).despawn_recursive();
 
         app_state.pop().expect("Popping main menu game state");
     }
