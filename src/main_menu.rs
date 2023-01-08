@@ -6,7 +6,8 @@ use bevy::{
     },
     text::TextStyle,
     ui::{
-        AlignItems, FlexDirection, Interaction, JustifyContent, PositionType, Style, UiRect, Val,
+        AlignItems, BackgroundColor, FlexDirection, Interaction, JustifyContent, PositionType,
+        Style, UiRect, Val,
     },
 };
 
@@ -33,16 +34,24 @@ impl Plugin for MainMenuPlugin {
                 .with_system(main_menu_interaction)
                 .after("main_menu_setup"),
         );
+        app.add_system_set(
+            SystemSet::on_update(GameState::MainMenu)
+                .with_system(main_menu_selection)
+                .after("main_menu_setup"),
+        );
     }
 }
 
-#[derive(Component, EnumIter, Debug)]
+#[derive(Component, EnumIter, Debug, Clone)]
 enum MainMenuButtonAction {
     NewGame,
     Save,
     Load,
     Quit,
 }
+
+const HOVER_BUTTON_COLOR: Color = Color::rgb(0.750, 0.0975, 0.717);
+const DEFAULT_BUTTON_COLOR: Color = Color::rgb(0.925, 0.0564, 0.940);
 
 #[derive(Component)]
 pub struct MainMenuUI {}
@@ -80,10 +89,10 @@ fn generate_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 },
                                 ..Default::default()
                             },
-                            background_color: Color::PINK.into(),
+                            background_color: DEFAULT_BUTTON_COLOR.into(),
                             ..Default::default()
                         },
-                        MainMenuButtonAction::NewGame,
+                        menu_point.clone(),
                     ))
                     .with_children(|parent| {
                         parent.spawn(TextBundle::from_section(
@@ -132,5 +141,23 @@ fn main_menu_interaction(
                 MainMenuButtonAction::Quit => todo!(),
             }
         }
+    }
+}
+
+fn main_menu_selection(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (
+            Changed<Interaction>,
+            With<Button>,
+            With<MainMenuButtonAction>,
+        ),
+    >,
+) {
+    for (interaction, mut color) in interaction_query.iter_mut() {
+        *color = match *interaction {
+            Interaction::Clicked | Interaction::Hovered => HOVER_BUTTON_COLOR.into(),
+            Interaction::None => DEFAULT_BUTTON_COLOR.into(),
+        };
     }
 }
